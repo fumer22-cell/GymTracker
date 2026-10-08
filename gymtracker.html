@@ -1,0 +1,854 @@
+<title>Gym Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap">
+<style>
+/* Layout: one narrow column, thumb-reach controls pinned to the bottom (nav + a dock for the main action). */
+:root{
+  --bg:#f1f4f5; --surface:#ffffff; --surface2:#e6edef; --line:#d3dce0;
+  --fg:#0f1a1f; --muted:#556670;
+  --accent:#087f6f; --on-accent:#ffffff; --accent-dim:#a6d6ce;
+  --cal:#a2610c; --carb:#2d5ccb; --fat:#c0412a; --good:#1b8749; --danger:#c23a2e;
+  --font-d:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+  --font-b:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --nav:62px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1013; --surface:#141a1f; --surface2:#1d252c; --line:#28333c;
+  --fg:#eaf0f3; --muted:#8c9ba6;
+  --accent:#3ddbc2; --on-accent:#03201b; --accent-dim:#1c5b52;
+  --cal:#f3b756; --carb:#7ba6ff; --fat:#ff8f78; --good:#5fd98b; --danger:#ff7266;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1013; --surface:#141a1f; --surface2:#1d252c; --line:#28333c;
+  --fg:#eaf0f3; --muted:#8c9ba6;
+  --accent:#3ddbc2; --on-accent:#03201b; --accent-dim:#1c5b52;
+  --cal:#f3b756; --carb:#7ba6ff; --fat:#ff8f78; --good:#5fd98b; --danger:#ff7266;
+  color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-b);font-size:16px;line-height:1.35;-webkit-text-size-adjust:100%}
+body.lock{overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;touch-action:manipulation}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#app{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:14px calc(var(--nav) + 120px)}
+.num{font-variant-numeric:tabular-nums}
+.disp{font-family:var(--font-d);font-weight:800;letter-spacing:.01em}
+.label{font-family:var(--font-d);font-weight:700;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+h1,h2,h3{margin:0;text-wrap:balance}
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+.stack{display:flex;flex-direction:column;gap:12px}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.hide{display:none!important}
+
+/* Cards and buttons */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 20px;border-radius:12px;background:var(--surface2);font-weight:600;font-size:17px;width:100%}
+.btn.primary{background:var(--accent);color:var(--on-accent);min-height:64px;font-family:var(--font-d);font-weight:800;font-size:26px;letter-spacing:.04em;text-transform:uppercase}
+.btn.ghost{background:transparent;border:1.5px solid var(--line)}
+.btn.danger{background:transparent;border:1.5px solid var(--danger);color:var(--danger)}
+.btn.armed{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn.sm{min-height:48px;font-size:16px}
+.link{color:var(--muted);text-decoration:underline;min-height:48px;padding:0 8px;font-size:16px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:4px 12px;background:var(--surface2);font-size:14px;font-weight:600}
+
+/* Header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:52px;margin-bottom:10px}
+.top h1{font-family:var(--font-d);font-weight:800;font-size:34px;letter-spacing:.02em;text-transform:uppercase}
+.iconbtn{width:48px;height:48px;border-radius:12px;background:var(--surface2);display:grid;place-items:center;font-size:22px}
+
+/* Bottom nav */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav-in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.nav button{height:var(--nav);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--muted);font-size:13px;font-weight:600}
+.nav button[aria-current="page"]{color:var(--accent)}
+.nav svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.dock{position:fixed;left:0;right:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom,0px));z-index:25;background:var(--bg);border-top:1px solid var(--line)}
+.dock-in{max-width:560px;margin:0 auto;padding:10px 16px;display:flex;flex-direction:column;gap:6px}
+
+/* Food dashboard */
+.hero{padding:18px 16px 16px}
+.hero .big{font-size:84px;line-height:.9;color:var(--accent)}
+.hero .of{font-family:var(--font-d);font-weight:700;font-size:30px;color:var(--muted)}
+.bar{height:22px;border-radius:99px;background:var(--surface2);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:99px;background:var(--accent);transition:width .35s}
+.bar.thin{height:10px}
+.bar.cal>i{background:var(--cal)}
+.bar.over>i{background:var(--good)}
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mini .v{font-family:var(--font-d);font-weight:800;font-size:30px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-inline:-16px;padding-inline:16px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-height:48px;padding:6px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--line);text-align:left;max-width:200px}
+.chip b{display:block;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip span{font-size:13px;color:var(--muted)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.chip.on span{color:var(--on-accent)}
+.entry{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:10px 4px;text-align:left;border-bottom:1px solid var(--line)}
+.entry:last-child{border-bottom:0}
+.entry .p{font-family:var(--font-d);font-weight:800;font-size:28px;color:var(--accent);text-align:right;min-width:62px}
+.entry .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Sheets */
+.scrim{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:560px;max-height:94%;overflow-y:auto;background:var(--bg);border-radius:20px 20px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.fld{display:flex;flex-direction:column;gap:6px}
+.fld label{font-size:14px;color:var(--muted);font-weight:600}
+.in{width:100%;min-height:54px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);padding:0 14px;font-size:18px}
+textarea.in{padding:12px 14px;min-height:96px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.photo-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.photo-row label.btn{cursor:pointer}
+.thumb{width:100%;max-height:220px;object-fit:cover;border-radius:12px}
+.mults{display:flex;gap:8px;flex-wrap:wrap}
+.mults button{flex:1 1 56px;min-height:48px;border-radius:10px;background:var(--surface2);font-weight:600}
+.mults button.on{background:var(--accent);color:var(--on-accent)}
+.spin{width:34px;height:34px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--accent);animation:sp 0.9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{border:1.5px solid var(--danger);border-radius:12px;padding:12px 14px;color:var(--danger);font-weight:500}
+.note{border-radius:12px;padding:12px 14px;background:var(--surface2);font-size:15px}
+
+/* Workout */
+.tier{display:flex;gap:10px;align-items:center}
+.segs{display:flex;gap:4px}
+.segs i{flex:1;height:8px;border-radius:4px;background:var(--surface2)}
+.segs i.done{background:var(--accent)}
+.segs i.now{background:var(--fg)}
+.segs i.skip{background:var(--line)}
+.ssid{font-family:var(--font-d);font-weight:800;font-size:64px;line-height:.85;color:var(--accent)}
+.exc{display:flex;flex-direction:column;gap:12px}
+.exc h3{font-size:21px;font-weight:600;font-family:var(--font-b)}
+.beat{font-family:var(--font-d);font-weight:700;font-size:20px;color:var(--cal);white-space:nowrap}
+.step{display:grid;grid-template-columns:60px 1fr 60px;gap:8px;align-items:center}
+.step button{height:60px;border-radius:12px;background:var(--surface2);font-size:30px;font-weight:600;line-height:1}
+.step .val{position:relative}
+.step input{width:100%;height:60px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);text-align:center;font-family:var(--font-d);font-weight:800;font-size:38px;padding:0 34px 0 0;-moz-appearance:textfield}
+.step input::-webkit-outer-spin-button,.step input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.step .u{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);font-weight:600;pointer-events:none}
+.lastline{font-size:14px;color:var(--muted)}
+.lastline b{color:var(--fg)}
+.ring{position:relative;width:240px;height:240px;margin:6px auto}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:12}
+.ring .bg{stroke:var(--surface2)}
+.ring .fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .25s linear}
+.ring.ready .fg{stroke:var(--good)}
+.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .clock{font-family:var(--font-d);font-weight:800;font-size:76px;line-height:1}
+.hist{display:flex;flex-direction:column}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface2);border-radius:12px;padding:4px;gap:4px}
+.seg button{min-height:46px;border-radius:9px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.sess{width:100%;text-align:left;display:flex;flex-direction:column;gap:2px}
+.logrow{display:grid;grid-template-columns:44px 1fr;gap:4px 8px;font-size:15px;padding:6px 0;border-top:1px solid var(--line)}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--font-b);font-size:11px}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .ln{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.chart .ar{fill:var(--accent);opacity:.14}
+.chart .pt{fill:var(--bg);stroke:var(--accent);stroke-width:2}
+.chart .pt.last{fill:var(--accent)}
+.chart .bar1{fill:var(--accent-dim)}
+.chart .bar1.now{fill:var(--accent)}
+.chart .goal{stroke:var(--fg);stroke-width:1.2;stroke-dasharray:4 4;opacity:.55}
+.chart .val{fill:var(--fg);font-weight:600}
+.chart .endl{fill:var(--fg);font-weight:700;font-size:12px}
+select.in{appearance:auto}
+#toast{position:fixed;left:16px;right:16px;bottom:calc(var(--nav) + 84px + env(safe-area-inset-bottom,0px));z-index:70;max-width:528px;margin:0 auto;display:none}
+#toast.show{display:flex}
+#toast .t{flex:1;background:var(--fg);color:var(--bg);border-radius:12px;padding:0 16px;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+#toast button{color:var(--accent-dim);font-weight:800;min-height:48px;padding:0 4px;text-transform:uppercase;letter-spacing:.06em;filter:brightness(1.4)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.7/dexie.min.js"></script>
+<script>
+/* ============================================================
+   Gym Tracker: food + dumbbell ladder. All data stays in this browser.
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const dkey = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const parseKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const todayKey = () => dkey(new Date());
+const addDays = (k, n) => { const d = parseKey(k); d.setDate(d.getDate() + n); return dkey(d); };
+const num = (v, def = 0) => { const n = parseFloat(v); return isFinite(n) ? n : def; };
+const r1 = n => Math.round(n * 10) / 10;
+const fmt = n => Math.round(n).toLocaleString();
+const mmss = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + pad(sec % 60); };
+const shortDate = ts => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+const longDate = ts => new Date(ts).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const wfmt = w => (Math.round(w * 10) / 10).toString();
+
+/* ---------- Workout definition ---------- */
+const TIERS = {
+  1: { name: 'Light',    lb: '~10 lb',     w: 10 },
+  2: { name: 'Medium',   lb: '~20 lb',     w: 20 },
+  3: { name: 'Heavy',    lb: '30–40 lb',   w: 35 },
+  4: { name: 'Heaviest', lb: '40–50+ lb',  w: 45 },
+};
+const EX = {
+  lat:  { n: 'Lateral raise', r: 12 },            rear: { n: 'Rear delt fly', r: 12 },
+  wc:   { n: 'Wrist curl', r: 15 },               rwc:  { n: 'Reverse wrist curl', r: 15 },
+  bic:  { n: 'Bicep curl', r: 10 },               oht:  { n: 'Overhead tricep extension', r: 10 },
+  ham:  { n: 'Hammer curl', r: 10 },              sk:   { n: 'Skull crusher', r: 10 },
+  fp:   { n: 'Floor press', r: 10 },              row:  { n: 'Bent-over row', r: 10 },
+  ohp:  { n: 'Overhead press', r: 10 },          shr:  { n: 'Shrug', r: 12 },
+  gob:  { n: 'Goblet squat', r: 10 },             rdl:  { n: 'Romanian deadlift', r: 10 },
+  calf: { n: 'Calf raise', r: 15 },
+};
+const SS = [
+  { id: 'A', tier: 1, ex: ['lat', 'rear'] },
+  { id: 'B', tier: 1, ex: ['wc', 'rwc'] },
+  { id: 'C', tier: 2, ex: ['bic', 'oht'] },
+  { id: 'D', tier: 2, ex: ['ham', 'sk'], opt: true },
+  { id: 'E', tier: 3, ex: ['fp', 'row'] },
+  { id: 'F', tier: 3, ex: ['ohp', 'shr'] },
+  { id: 'G', tier: 4, ex: ['gob', 'rdl'] },
+  { id: 'FIN', tier: 4, ex: ['calf'], fin: true },
+];
+const ssLabel = d => d.fin ? 'Finisher' : 'Superset ' + d.id;
+const ssIndex = id => SS.findIndex(d => d.id === id);
+
+/* ---------- Storage: Dexie, with an in-memory fallback if IndexedDB is blocked ---------- */
+let db, memMode = false;
+function makeMem() {
+  const mk = (pk, auto) => { let rows = [], n = 0; return {
+    async toArray() { return rows.map(r => ({ ...r })); },
+    async add(o) { o = { ...o }; if (auto && o[pk] == null) o[pk] = ++n; rows.push(o); return o[pk]; },
+    async put(o) { o = { ...o }; if (auto && o[pk] == null) o[pk] = ++n; const i = rows.findIndex(r => r[pk] === o[pk]); if (i >= 0) rows[i] = o; else rows.push(o); return o[pk]; },
+    async delete(k) { rows = rows.filter(r => r[pk] !== k); },
+    async clear() { rows = []; },
+  }; };
+  return { foods: mk('id', true), sessions: mk('id', true), settings: mk('key', false) };
+}
+async function initDb() {
+  try {
+    const d = new Dexie('gymtracker');
+    d.version(1).stores({ foods: '++id,date,ts', sessions: '++id,ts,status', settings: 'key' });
+    await d.open();
+    db = d;
+  } catch (e) { memMode = true; db = makeMem(); }
+}
+
+const DEFAULTS = { proteinGoal: 160, calGoal: 2600, sets: 3, restSec: 60, step: 5 };
+const state = {
+  tab: 'today', viewDate: todayKey(), foods: [], sessions: [], settings: { ...DEFAULTS },
+  sheet: null, add: null, cf: null, active: null, wk: null,
+  hTab: 'sessions', hEx: 'lat', openSess: null, arm: null,
+  ai: null, aiImages: null, aiReady: false, ctl: null, backupMsg: '',
+};
+
+async function safe(fn) { try { return await fn(); } catch (e) { toast('Could not save to this browser'); return null; } }
+
+async function loadAll() {
+  state.foods = await db.foods.toArray();
+  state.sessions = await db.sessions.toArray();
+  const rows = await db.settings.toArray();
+  rows.forEach(r => { if (r.key in DEFAULTS) state.settings[r.key] = r.value; });
+  state.active = state.sessions.find(s => s.status === 'active') || null;
+}
+const setSetting = (k, v) => { state.settings[k] = v; return safe(() => db.settings.put({ key: k, value: v })); };
+const doneSessions = () => state.sessions.filter(s => s.status === 'done').sort((a, b) => a.ts - b.ts);
+
+/* ---------- Toast ---------- */
+let toastTimer;
+function toast(msg, undo) {
+  const el = $('#toast');
+  el.innerHTML = '<div class="t"><span>' + esc(msg) + '</span>' + (undo ? '<button data-act="undo">Undo</button>' : '') + '</div>';
+  el.classList.add('show');
+  toast.undo = undo;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), undo ? 5000 : 2600);
+}
+
+/* ---------- Icons ---------- */
+const ICON = {
+  today: '<svg viewBox="0 0 24 24"><path d="M7 3v8a3 3 0 0 0 3 3v7M7 3v5M10 3v5M17 3c-2 2-3 5-3 8h3v10"/></svg>',
+  workout: '<svg viewBox="0 0 24 24"><path d="M3 9v6M6 6v12M18 6v12M21 9v6M6 12h12"/></svg>',
+  history: '<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>',
+  settings: '<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
+};
+
+/* ============================================================
+   Rendering
+   ============================================================ */
+const app = $('#app');
+function captureDraft() {
+  const t = $('#addText'); if (t && state.add) state.add.text = t.value;
+}
+function render() {
+  captureDraft();
+  const views = { today: viewToday, workout: viewWorkout, history: viewHistory, settings: viewSettings };
+  const tabs = [['today', 'Food'], ['workout', 'Workout'], ['history', 'History'], ['settings', 'Settings']];
+  app.innerHTML = views[state.tab]() +
+    '<nav class="nav" aria-label="Sections"><div class="nav-in">' +
+    tabs.map(([k, l]) => '<button data-act="nav" data-tab="' + k + '"' + (state.tab === k ? ' aria-current="page"' : '') + '>' + ICON[k === 'today' ? 'today' : k] + l + '</button>').join('') +
+    '</div></nav>' + (state.sheet ? sheetHtml() : '');
+  document.body.classList.toggle('lock', !!state.sheet);
+}
+
+/* ---------- Food: dashboard ---------- */
+const totalsFor = date => state.foods.filter(f => f.date === date).reduce((a, f) => (a.p += f.p, a.cal += f.cal, a.c += f.c, a.f += f.f, a), { p: 0, cal: 0, c: 0, f: 0 });
+
+function viewToday() {
+  const d = state.viewDate, isToday = d === todayKey(), S = state.settings;
+  const list = state.foods.filter(f => f.date === d).sort((a, b) => a.ts - b.ts);
+  const t = totalsFor(d);
+  const pg = S.proteinGoal, left = Math.round(pg - t.p);
+  const dateLabel = isToday ? 'Today' : parseKey(d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const seen = new Set(), recents = [];
+  [...state.foods].sort((a, b) => b.ts - a.ts).forEach(f => { const k = f.name.trim().toLowerCase(); if (!seen.has(k) && recents.length < 12) { seen.add(k); recents.push(f); } });
+  state.recents = recents;
+  return '<div class="top"><button class="iconbtn" data-act="dayPrev" aria-label="Previous day">‹</button>' +
+    '<h1>' + esc(dateLabel) + '</h1>' +
+    '<button class="iconbtn" data-act="dayNext" aria-label="Next day"' + (isToday ? ' disabled style="opacity:.3"' : '') + '>›</button></div>' +
+    '<div class="stack">' +
+    '<section class="card hero"><div class="label">Protein</div>' +
+    '<div class="row" style="align-items:baseline;gap:8px;margin:6px 0 12px"><span class="disp num big">' + fmt(t.p) + '</span><span class="of num">/ ' + fmt(pg) + ' g</span></div>' +
+    '<div class="bar' + (t.p >= pg ? ' over' : '') + '" role="progressbar" aria-valuemin="0" aria-valuemax="' + pg + '" aria-valuenow="' + Math.round(t.p) + '"><i style="width:' + Math.min(100, t.p / pg * 100) + '%"></i></div>' +
+    '<div class="small muted num" style="margin-top:8px">' + (left > 0 ? left + ' g to go' : 'Goal hit' + (left < 0 ? ' (+' + (-left) + ' g)' : '')) + '</div></section>' +
+    '<section class="card"><div class="row between"><span class="label">Calories</span><span class="num"><b>' + fmt(t.cal) + '</b> <span class="muted">/ ' + fmt(S.calGoal) + ' kcal</span></span></div>' +
+    '<div class="bar thin cal" style="margin:10px 0 14px"><i style="width:' + Math.min(100, t.cal / S.calGoal * 100) + '%"></i></div>' +
+    '<div class="mini"><div><div class="label">Carbs</div><div class="v num" style="color:var(--carb)">' + fmt(t.c) + '<small style="font-size:16px"> g</small></div></div>' +
+    '<div><div class="label">Fat</div><div class="v num" style="color:var(--fat)">' + fmt(t.f) + '<small style="font-size:16px"> g</small></div></div></div></section>' +
+    '<button class="btn primary" data-act="openAdd">+ Log food</button>' +
+    (recents.length ? '<div><div class="label" style="margin-bottom:8px">Quick add</div><div class="chips">' +
+      recents.map((f, i) => '<button class="chip" data-act="quick" data-i="' + i + '"><b>' + esc(f.name) + '</b><span class="num">' + fmt(f.p) + ' g protein · ' + fmt(f.cal) + ' kcal</span></button>').join('') + '</div></div>' : '') +
+    '<section class="card" style="padding:8px 12px"><div class="label" style="padding:8px 4px 2px">' + (isToday ? "Today's" : 'Day’s') + ' entries</div>' +
+    (list.length ? list.map(f => '<button class="entry" data-act="editFood" data-id="' + f.id + '"><div class="grow"><div class="t">' + esc(f.name) + '</div><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(f.portion || '') + (f.portion ? ' · ' : '') + fmt(f.cal) + ' kcal</div></div><div class="p num">' + fmt(f.p) + '<small style="font-size:15px">g</small></div></button>').join('')
+      : '<p class="muted" style="padding:6px 4px 12px;margin:0">Nothing logged yet. Tap “Log food” and snap a photo or type what you ate.</p>') + '</section>' +
+    '<section class="card"><div class="row between"><span class="label">Protein, last 7 days</span></div>' + proteinChart() + '</section>' +
+    '</div>';
+}
+
+function proteinChart() {
+  const end = todayKey(), goal = state.settings.proteinGoal;
+  const days = []; for (let i = 6; i >= 0; i--) { const k = addDays(end, -i); days.push({ k, p: totalsFor(k).p, wd: 'SMTWTFS'[parseKey(k).getDay()] }); }
+  const W = 340, H = 170, L = 8, R = 8, T = 22, B = 24, pw = W - L - R, ph = H - T - B;
+  const max = Math.max(goal, ...days.map(d => d.p)) * 1.1;
+  const y = v => T + ph - v / max * ph, bw = pw / 7;
+  let s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Protein per day for the last 7 days"><line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
+  days.forEach((d, i) => {
+    const x = L + i * bw + bw * .18, w = bw * .64, h = Math.max(d.p > 0 ? 2 : 0, d.p / max * ph);
+    s += '<rect class="bar1' + (d.k === end ? ' now' : '') + '" x="' + x + '" y="' + (T + ph - h) + '" width="' + w + '" height="' + h + '" rx="4"/>';
+    if (d.p > 0) s += '<text class="val" x="' + (x + w / 2) + '" y="' + (T + ph - h - 5) + '" text-anchor="middle">' + Math.round(d.p) + '</text>';
+    s += '<text x="' + (x + w / 2) + '" y="' + (H - 7) + '" text-anchor="middle">' + d.wd + '</text>';
+  });
+  s += '<line class="goal" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(goal) + '" y2="' + y(goal) + '"/><text x="' + (W - R) + '" y="' + (y(goal) - 4) + '" text-anchor="end">goal ' + goal + ' g</text></svg>';
+  return s;
+}
+
+/* ---------- Food: sheets ---------- */
+function sheetHtml() {
+  if (state.sheet === 'add') return sheetAdd();
+  if (state.sheet === 'confirm') return sheetConfirm();
+  return '';
+}
+function sheetShell(title, body) {
+  return '<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-label="' + esc(title) + '">' +
+    '<div class="row between"><h2 class="disp" style="font-size:30px;text-transform:uppercase">' + esc(title) + '</h2><button class="iconbtn" data-act="closeSheet" aria-label="Close">✕</button></div>' + body + '</div></div>';
+}
+function sheetAdd() {
+  const a = state.add;
+  if (a.status === 'loading') {
+    return sheetShell('Estimating', '<div class="card row" style="gap:16px"><div class="spin"></div><div class="grow"><b>Asking Claude…</b><div class="small muted">The first time, you’ll be asked to allow this page to use Claude. Photos can take 10–30 seconds.</div></div></div><button class="btn ghost" data-act="cancelEst">Cancel</button>');
+  }
+  const photoOk = state.aiImages !== false;
+  const aiOk = !!state.ai;
+  return sheetShell('Log food',
+    (a.error ? '<div class="err">' + esc(a.error) + '</div>' : '') +
+    (!aiOk && state.aiReady ? '<div class="note">Claude estimates aren’t available here. You can still enter numbers by hand.</div>' : '') +
+    (photoOk ? '<div class="photo-row"><label class="btn" for="camIn">Take photo</label><label class="btn" for="fileIn">Upload photo</label>' +
+      '<input id="camIn" type="file" accept="image/*" capture="environment" hidden data-ch="photo"><input id="fileIn" type="file" accept="image/*" hidden data-ch="photo"></div>' : '') +
+    (a.photoUrl ? '<div class="stack" style="gap:8px"><img class="thumb" src="' + a.photoUrl + '" alt="Meal photo"><button class="link" data-act="clearPhoto" style="align-self:flex-start">Remove photo</button></div>' : '') +
+    '<div class="fld"><label for="addText">' + (a.photoUrl ? 'Anything to add? (optional)' : 'Or describe it') + '</label><textarea id="addText" class="in" placeholder="2 eggs and toast with butter">' + esc(a.text) + '</textarea></div>' +
+    '<button class="btn primary" data-act="estimate"' + (aiOk ? '' : ' disabled') + '>Estimate</button>' +
+    '<button class="btn ghost" data-act="manual">Enter numbers by hand</button>');
+}
+function sheetConfirm() {
+  const c = state.cf, mults = [[.5, '½×'], [.75, '¾×'], [1, '1×'], [1.25, '1¼×'], [1.5, '1½×'], [2, '2×']];
+  return sheetShell(c.id != null ? 'Edit entry' : 'Check & save',
+    (c.fromAi ? '<div class="note">Estimated by Claude' + (c.conf ? ' (' + esc(c.conf) + ' confidence)' : '') + '. Adjust anything that looks off.</div>' : '') +
+    '<div class="fld"><label for="cfName">Food</label><input id="cfName" class="in" value="' + esc(c.name) + '" placeholder="Name"></div>' +
+    '<div class="fld"><label for="cfPortion">Portion</label><input id="cfPortion" class="in" value="' + esc(c.portion) + '" placeholder="e.g. 2 eggs, 1 slice toast"></div>' +
+    (c.base ? '<div class="fld"><label>Scale portion</label><div class="mults">' + mults.map(([m, l]) => '<button data-act="scale" data-m="' + m + '"' + (c.mult === m ? ' class="on"' : '') + '>' + l + '</button>').join('') + '</div></div>' : '') +
+    '<div class="fld"><label for="cfP" style="color:var(--accent)">Protein (g)</label><input id="cfP" class="in num" inputmode="decimal" style="font-size:30px;font-weight:700;min-height:64px;color:var(--accent)" value="' + c.p + '"></div>' +
+    '<div class="grid3"><div class="fld"><label for="cfCal">Calories</label><input id="cfCal" class="in num" inputmode="decimal" value="' + c.cal + '"></div>' +
+    '<div class="fld"><label for="cfC">Carbs (g)</label><input id="cfC" class="in num" inputmode="decimal" value="' + c.c + '"></div>' +
+    '<div class="fld"><label for="cfF">Fat (g)</label><input id="cfF" class="in num" inputmode="decimal" value="' + c.f + '"></div></div>' +
+    '<button class="btn primary" data-act="saveFood">Save</button>' +
+    (c.id != null ? '<button class="btn danger sm' + (state.arm === 'delFood' ? ' armed' : '') + '" data-act="delFood">' + (state.arm === 'delFood' ? 'Tap again to delete' : 'Delete entry') + '</button>' : ''));
+}
+
+/* ---------- Food: Claude estimate ---------- */
+const ERR = {
+  not_granted: 'Claude access was declined for this page. Allow it in the artifact’s permissions, or enter the numbers by hand.',
+  sampling_disabled: 'Claude isn’t available for this account. Enter the numbers by hand.',
+  rate_limited: 'Too many requests, or your Claude usage limit was reached. Try again in a bit.',
+  invalid_json: 'Claude’s reply couldn’t be read. Try again, or add more detail to the description.',
+  image_rejected: 'That photo couldn’t be used. Try a different one.',
+  images_unavailable: 'Photo estimates aren’t available here. Describe the food in text instead.',
+  session_expired: 'Your Claude session expired. Sign in again, then retry.',
+  refused: 'Claude couldn’t estimate that. Try rewording it.',
+  empty_completion: 'Claude returned nothing. Try again with more detail.',
+};
+async function shrink(file, max = 1280) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * sc); c.height = Math.round(img.naturalHeight * sc);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(b => r(b || file), 'image/jpeg', 0.85));
+  } catch (e) { return file; } finally { URL.revokeObjectURL(url); }
+}
+async function estimate() {
+  const a = state.add; captureDraft();
+  const text = (a.text || '').trim();
+  if (!text && !a.photo) { a.error = 'Add a photo or describe what you ate first.'; render(); return; }
+  if (!state.ai) { a.error = ERR.sampling_disabled; render(); return; }
+  a.error = ''; a.status = 'loading'; render();
+  const ctl = new AbortController(); state.ctl = ctl;
+  const prompt =
+    'You are a careful nutrition estimator for a gym-goer who tracks protein first.\n' +
+    (a.photo ? 'A photo of the food is attached.\n' : '') +
+    (text ? 'The user describes it as: "' + text.replace(/"/g, "'") + '"\n' : '') +
+    'Estimate the totals for the whole portion shown or described. If there are several foods, combine them into one entry whose name briefly lists them (max 60 characters). ' +
+    '"portion" is the plain-language portion you assumed (for example "2 large eggs, 2 slices toast, 1 tbsp butter"). Use realistic typical portions. ' +
+    'Calories are whole kcal; grams are whole numbers. If the image or text is not food, use name "Not food" and zeros.\n' +
+    'Reply with ONLY one JSON object, no prose, no markdown fences, exactly this shape:\n' +
+    '{"name":"string","portion":"string","calories":0,"protein_g":0,"carbs_g":0,"fat_g":0,"confidence":"low|medium|high"}';
+  const opts = { signal: ctl.signal, model: 'claude-sonnet-5-5', modelTier: 'default' };
+  if (a.photo) opts.images = [a.photo];
+  try {
+    const r = await state.ai.json(prompt, opts);
+    const o = Array.isArray(r) ? r[0] : r;
+    if (!o || typeof o !== 'object') throw { code: 'invalid_json' };
+    const p = Math.max(0, Math.round(num(o.protein_g ?? o.protein))), c = Math.max(0, Math.round(num(o.carbs_g ?? o.carbs))), f = Math.max(0, Math.round(num(o.fat_g ?? o.fat)));
+    let cal = Math.max(0, Math.round(num(o.calories ?? o.kcal)));
+    if (!cal) cal = Math.round(p * 4 + c * 4 + f * 9);
+    const name = String(o.name || '').trim() || text.slice(0, 60) || 'Food';
+    state.cf = { name, portion: String(o.portion || '').trim(), p, cal, c, f, base: { p, cal, c, f }, mult: 1, conf: ['low', 'medium', 'high'].includes(o.confidence) ? o.confidence : '', fromAi: true };
+    state.sheet = 'confirm';
+  } catch (e) {
+    if (e && e.code === 'cancelled') { a.status = 'idle'; render(); return; }
+    a.status = 'idle'; a.error = ERR[e && e.code] || 'Couldn’t reach Claude. Check your connection and try again, or enter the numbers by hand.';
+  } finally { state.ctl = null; }
+  render();
+}
+function readCf() {
+  const c = state.cf;
+  c.name = $('#cfName').value.trim(); c.portion = $('#cfPortion').value.trim();
+  c.p = r1(Math.max(0, num($('#cfP').value))); c.cal = Math.round(Math.max(0, num($('#cfCal').value)));
+  c.c = r1(Math.max(0, num($('#cfC').value))); c.f = r1(Math.max(0, num($('#cfF').value)));
+}
+
+/* ---------- Workout helpers ---------- */
+function buildLast() {
+  const out = {};
+  doneSessions().forEach(s => {
+    const per = {};
+    s.logs.forEach(l => Object.entries(l.ex).forEach(([id, v]) => (per[id] = per[id] || []).push({ set: l.set, w: v.w, r: v.r })));
+    Object.entries(per).forEach(([id, sets]) => { out[id] = { ts: s.ts, sets }; });
+  });
+  return out;
+}
+function prefill(s, d, setNo) {
+  const last = buildLast(), input = {};
+  d.ex.forEach(id => {
+    const prev = [...s.logs].reverse().find(l => l.ex[id]);
+    const L = last[id]; let lw, lr;
+    if (L) { const m = L.sets.find(x => x.set === setNo) || L.sets[L.sets.length - 1]; lw = m.w; lr = m.r; }
+    input[id] = { w: prev ? prev.ex[id].w : (lw ?? TIERS[d.tier].w), r: lr ?? EX[id].r };
+  });
+  return input;
+}
+function ensureWk() {
+  const s = state.active, key = s.cur.ss + '-' + s.cur.set;
+  if (!state.wk || state.wk.key !== key || state.wk.sid !== s.id) state.wk = { key, sid: s.id, input: prefill(s, SS[s.cur.ss], s.cur.set) };
+  return state.wk;
+}
+const persistActive = () => safe(() => db.sessions.put(state.active));
+function sessionStats(s) {
+  const sets = s.logs.length, vol = s.logs.reduce((a, l) => a + Object.values(l.ex).reduce((b, v) => b + v.w * v.r, 0), 0);
+  const rests = s.logs.map(l => l.rest).filter(r => r != null);
+  return { sets, vol, dur: ((s.end || Date.now()) - s.ts) / 1000, rest: rests.length ? rests.reduce((a, b) => a + b, 0) / rests.length : null };
+}
+
+/* ---------- Workout views ---------- */
+function viewWorkout() {
+  const s = state.active;
+  if (!s) return workoutStart();
+  return s.restStart ? workoutRest(s) : workoutSet(s);
+}
+function workoutStart() {
+  const last = buildLast(), done = doneSessions(), prev = done[done.length - 1];
+  let h = '<div class="top"><h1>Ladder</h1></div><div class="stack">';
+  if (prev) { const st = sessionStats(prev); h += '<div class="card row between"><div><div class="label">Last session</div><div style="font-weight:600">' + longDate(prev.ts) + '</div></div><div class="small muted num" style="text-align:right">' + st.sets + ' sets · ' + Math.round(st.dur / 60) + ' min<br>' + fmt(st.vol) + ' lb moved</div></div>'; }
+  h += '<button class="btn primary" data-act="startWk">Start workout</button>';
+  [1, 2, 3, 4].forEach(t => {
+    h += '<section class="card stack" style="gap:10px"><div class="row between"><span class="disp" style="font-size:26px;text-transform:uppercase">Tier ' + t + ' · ' + TIERS[t].name + '</span><span class="pill">' + TIERS[t].lb + '</span></div>';
+    SS.filter(d => d.tier === t).forEach(d => {
+      h += '<div><div class="small muted" style="font-weight:600">' + ssLabel(d) + (d.opt ? ' · optional' : '') + '</div>' +
+        d.ex.map(id => '<div class="row between"><span>' + EX[id].n + '</span><span class="small muted num">' + (last[id] ? wfmt(last[id].sets[last[id].sets.length - 1].w) + ' lb' : '') + '</span></div>').join('') + '</div>';
+    });
+    h += '</section>';
+  });
+  return h + '</div>';
+}
+function lastLine(L, setNo) {
+  if (!L) return '<div class="lastline">First time. Pick a weight and set the baseline.</div>';
+  return '<div class="lastline">Last (' + shortDate(L.ts) + '): ' + L.sets.map(x => (x.set === setNo ? '<b>' : '') + wfmt(x.w) + '×' + x.r + (x.set === setNo ? '</b>' : '')).join(', ') + '</div>';
+}
+function workoutSet(s) {
+  const d = SS[s.cur.ss], wk = ensureWk(), last = buildLast();
+  const segs = SS.map((x, i) => {
+    const doneSS = s.logs.some(l => l.ss === x.id);
+    return '<i class="' + (i === s.cur.ss ? 'now' : doneSS ? 'done' : (i < s.cur.ss ? 'skip' : '')) + '"></i>';
+  }).join('');
+  const isLast = s.cur.ss === SS.length - 1;
+  const hasLogs = s.logs.some(l => l.ss === d.id);
+  let h = '<div class="top"><div><div class="label">Tier ' + d.tier + ' · ' + TIERS[d.tier].name + ' · ' + TIERS[d.tier].lb + '</div></div><span class="pill num" id="wkElapsed">' + mmss((Date.now() - s.ts) / 1000) + '</span></div>' +
+    '<div class="stack"><div class="segs">' + segs + '</div>' +
+    '<div class="row" style="gap:14px"><div class="ssid">' + (d.fin ? '★' : d.id) + '</div><div><div class="disp" style="font-size:30px;text-transform:uppercase;line-height:1">' + ssLabel(d) + '</div><div class="muted num">Set ' + s.cur.set + ' of ' + s.cur.target + (d.opt ? ' · optional' : '') + '</div></div></div>';
+  d.ex.forEach(id => {
+    const L = last[id], m = L && (L.sets.find(x => x.set === s.cur.set) || L.sets[L.sets.length - 1]), v = wk.input[id];
+    h += '<section class="card exc"><div class="row between" style="align-items:flex-start"><h3>' + EX[id].n + '</h3>' + (m ? '<span class="beat num">BEAT ' + wfmt(m.w) + '×' + m.r + '</span>' : '') + '</div>' +
+      '<div class="step"><button data-act="adj" data-ex="' + id + '" data-f="w" data-d="-1" aria-label="Less weight">−</button><div class="val"><input class="num" inputmode="decimal" data-in="' + id + '.w" value="' + wfmt(v.w) + '" aria-label="Weight"><span class="u">lb</span></div><button data-act="adj" data-ex="' + id + '" data-f="w" data-d="1" aria-label="More weight">+</button></div>' +
+      '<div class="step"><button data-act="adj" data-ex="' + id + '" data-f="r" data-d="-1" aria-label="Fewer reps">−</button><div class="val"><input class="num" inputmode="numeric" data-in="' + id + '.r" value="' + v.r + '" aria-label="Reps"><span class="u">reps</span></div><button data-act="adj" data-ex="' + id + '" data-f="r" data-d="1" aria-label="More reps">+</button></div>' +
+      lastLine(L, s.cur.set) + '</section>';
+  });
+  h += '<div class="row" style="justify-content:space-between;flex-wrap:wrap">' +
+    (d.opt && !hasLogs ? '<button class="btn ghost sm" data-act="skipSS">Skip ' + ssLabel(d) + '</button>' : '') +
+    (s.logs.length ? '<button class="link" data-act="undoSet">Undo last set</button>' : '') +
+    '<button class="link' + (state.arm === 'finish' ? ' armed' : '') + '" data-act="finishWk" style="margin-left:auto;' + (state.arm === 'finish' ? 'color:var(--danger);font-weight:700' : '') + '">' + (state.arm === 'finish' ? 'Tap again to end workout' : 'End workout early') + '</button></div></div>' +
+    '<div class="dock"><div class="dock-in"><button class="btn primary" data-act="logSet">Log ' + (d.fin ? 'set' : 'superset') + '</button></div></div>';
+  return h;
+}
+function workoutRest(s) {
+  const d = SS[s.cur.ss], n = s.cur.set, more = n < s.cur.target, lastIdx = s.cur.ss === SS.length - 1;
+  const lastLog = s.logs[s.logs.length - 1], target = state.settings.restSec;
+  const nd = SS[s.cur.ss + 1];
+  const last = buildLast();
+  const nextTxt = more ? 'Set ' + (n + 1) + ' · ' + d.ex.map(id => EX[id].n).join(' + ') : (lastIdx ? 'All done. Finish to save.' : ssLabel(nd) + (nd.opt ? ' (optional)' : '') + ' · ' + nd.ex.map(id => EX[id].n).join(' + '));
+  const C = 2 * Math.PI * 100, e = (Date.now() - s.restStart) / 1000;
+  return '<div class="top"><div class="label">Rest · ' + ssLabel(d) + ' · set ' + n + ' done</div><span class="pill num" id="wkElapsed">' + mmss((Date.now() - s.ts) / 1000) + '</span></div>' +
+    '<div class="stack"><div class="ring' + (e >= target ? ' ready' : '') + '" id="ring"><svg viewBox="0 0 240 240"><circle class="bg" cx="120" cy="120" r="100"/><circle class="fg" id="ringFg" cx="120" cy="120" r="100" stroke-dasharray="' + C + '" stroke-dashoffset="' + C * (1 - Math.min(1, e / target)) + '"/></svg>' +
+    '<div class="mid"><div class="clock num" id="restClock">' + mmss(e) + '</div><div class="small muted num" id="restSub">' + (e >= target ? 'Ready when you are' : 'Target ' + mmss(target)) + '</div></div></div>' +
+    '<div class="card stack" style="gap:6px"><div class="label">Just logged</div>' + d.ex.map(id => lastLog && lastLog.ex[id] ? '<div class="row between"><span>' + EX[id].n + '</span><b class="num">' + wfmt(lastLog.ex[id].w) + ' lb × ' + lastLog.ex[id].r + '</b></div>' : '').join('') + '</div>' +
+    '<div class="card"><div class="label">Up next</div><div style="font-weight:600;margin-top:2px">' + esc(nextTxt) + '</div></div>' +
+    '<div class="row" style="justify-content:space-between;flex-wrap:wrap"><button class="link" data-act="undoSet">Undo last set</button>' +
+    (more ? '<button class="link" data-act="skipRest">' + (lastIdx ? 'Finish early' : 'Skip to next superset') + '</button>' : '<button class="link" data-act="moreSet">One more set</button>') + '</div></div>' +
+    '<div class="dock"><div class="dock-in"><button class="btn primary" data-act="restDone">' + (more ? 'Start set ' + (n + 1) : lastIdx ? 'Finish workout' : 'Next: ' + ssLabel(nd)) + '</button></div></div>';
+}
+
+/* ---------- Workout actions ---------- */
+let audioCtx;
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.28].forEach(t => { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.frequency.value = 880; o.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(.25, audioCtx.currentTime + t); g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + t + .22); o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + .24); });
+  } catch (e) {}
+  try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {}
+}
+let wakeLock;
+async function keepAwake() { try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {} }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && state.active) keepAwake(); });
+
+async function startWorkout() {
+  const s = { ts: Date.now(), date: todayKey(), status: 'active', cur: { ss: 0, set: 1, target: state.settings.sets }, restStart: null, logs: [] };
+  const id = await safe(() => db.sessions.add(s)); s.id = id ?? Date.now();
+  state.sessions.push(s); state.active = s; state.wk = null;
+  keepAwake(); render(); window.scrollTo(0, 0);
+}
+function logSet() {
+  const s = state.active, d = SS[s.cur.ss], wk = ensureWk(), ex = {};
+  for (const id of d.ex) {
+    const v = wk.input[id];
+    if (!(v.r > 0)) { toast('Enter reps for ' + EX[id].n); return; }
+    ex[id] = { w: Math.max(0, v.w), r: Math.round(v.r) };
+  }
+  s.logs.push({ ss: d.id, set: s.cur.set, ts: Date.now(), rest: null, ex });
+  s.restStart = Date.now(); state.alerted = false;
+  try { beep.prime = true; audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume && audioCtx.resume(); } catch (e) {}
+  persistActive(); render(); window.scrollTo(0, 0);
+}
+function recordRest(s) {
+  const l = s.logs[s.logs.length - 1];
+  if (l && s.restStart) l.rest = Math.round((Date.now() - s.restStart) / 1000);
+  s.restStart = null;
+}
+function moveNext(s) {
+  if (s.cur.ss >= SS.length - 1) { return finishWorkout(); }
+  s.cur = { ss: s.cur.ss + 1, set: 1, target: state.settings.sets };
+}
+function restDone() {
+  const s = state.active, wasMore = s.cur.set < s.cur.target;
+  if (!wasMore && s.cur.ss === SS.length - 1) { s.restStart = null; return finishWorkout(); }
+  recordRest(s);
+  if (wasMore) s.cur.set++; else moveNext(s);
+  state.wk = null; persistActive(); render(); window.scrollTo(0, 0);
+}
+async function finishWorkout() {
+  const s = state.active;
+  if (!s.logs.length) { await safe(() => db.sessions.delete(s.id)); state.sessions = state.sessions.filter(x => x !== s); state.active = null; state.wk = null; render(); toast('Workout discarded (no sets logged)'); return; }
+  s.status = 'done'; s.end = Date.now(); s.restStart = null;
+  await persistActive();
+  state.active = null; state.wk = null; state.tab = 'history'; state.hTab = 'sessions'; state.openSess = s.id;
+  try { wakeLock && wakeLock.release(); } catch (e) {}
+  render(); window.scrollTo(0, 0); toast('Workout saved');
+}
+
+/* ---------- History ---------- */
+function viewHistory() {
+  const sessions = doneSessions().reverse();
+  let h = '<div class="top"><h1>History</h1></div><div class="stack"><div class="seg"><button data-act="hTab" data-t="sessions" class="' + (state.hTab === 'sessions' ? 'on' : '') + '">Workouts</button><button data-act="hTab" data-t="progress" class="' + (state.hTab === 'progress' ? 'on' : '') + '">Progress</button></div>';
+  if (state.hTab === 'progress') return h + progressView(sessions) + '</div>';
+  if (!sessions.length) return h + '<div class="card muted">No finished workouts yet. Your sessions will show up here.</div></div>';
+  sessions.forEach(s => {
+    const st = sessionStats(s), open = state.openSess === s.id;
+    h += '<section class="card"><button class="sess" data-act="toggleSess" data-id="' + s.id + '"><div class="row between"><b style="font-size:18px">' + longDate(s.ts) + '</b><span class="muted">' + (open ? '▲' : '▼') + '</span></div>' +
+      '<div class="small muted num">' + st.sets + ' sets · ' + Math.round(st.dur / 60) + ' min · ' + fmt(st.vol) + ' lb moved' + (st.rest != null ? ' · avg rest ' + mmss(st.rest) : '') + '</div></button>';
+    if (open) {
+      h += '<div style="margin-top:10px">';
+      s.logs.forEach(l => {
+        h += '<div class="logrow"><b class="disp" style="font-size:22px;color:var(--accent)">' + (l.ss === 'FIN' ? '★' : l.ss) + l.set + '</b><div class="num">' +
+          Object.entries(l.ex).map(([id, v]) => esc(EX[id].n) + ' <b>' + wfmt(v.w) + '×' + v.r + '</b>').join('<br>') + (l.rest != null ? '<div class="small muted">rest ' + mmss(l.rest) + '</div>' : '') + '</div></div>';
+      });
+      h += '<button class="btn danger sm' + (state.arm === 'delS' + s.id ? ' armed' : '') + '" style="margin-top:10px" data-act="delSess" data-id="' + s.id + '">' + (state.arm === 'delS' + s.id ? 'Tap again to delete' : 'Delete workout') + '</button></div>';
+    }
+    h += '</section>';
+  });
+  return h + '</div>';
+}
+function progressView(sessions) {
+  const asc = [...sessions].reverse();
+  const pts = asc.map(s => {
+    const ls = s.logs.filter(l => l.ex[state.hEx]); if (!ls.length) return null;
+    const w = Math.max(...ls.map(l => l.ex[state.hEx].w)), r = Math.max(...ls.filter(l => l.ex[state.hEx].w === w).map(l => l.ex[state.hEx].r));
+    return { ts: s.ts, w, r };
+  }).filter(Boolean);
+  const opts = SS.map(d => '<optgroup label="' + ssLabel(d) + '">' + d.ex.map(id => '<option value="' + id + '"' + (state.hEx === id ? ' selected' : '') + '>' + EX[id].n + '</option>').join('') + '</optgroup>').join('');
+  let h = '<div class="fld"><label for="exSel">Exercise</label><select id="exSel" class="in" data-ch="hEx">' + opts + '</select></div><section class="card">';
+  if (!pts.length) return h + '<p class="muted" style="margin:0">No sets logged for this exercise yet.</p></section>';
+  const first = pts[0], lastP = pts[pts.length - 1], diff = lastP.w - first.w;
+  h += '<div class="row between" style="margin-bottom:6px"><div><div class="label">Top weight</div><div class="disp num" style="font-size:44px;line-height:1;color:var(--accent)">' + wfmt(lastP.w) + '<small style="font-size:18px"> lb</small></div></div>' +
+    (pts.length > 1 ? '<span class="pill num" style="color:' + (diff >= 0 ? 'var(--good)' : 'var(--danger)') + '">' + (diff >= 0 ? '+' : '') + wfmt(diff) + ' lb since ' + shortDate(first.ts) + '</span>' : '') + '</div>' + lineChart(pts);
+  h += '<div style="margin-top:8px">' + [...pts].reverse().slice(0, 8).map(p => '<div class="logrow" style="grid-template-columns:1fr auto"><span>' + longDate(p.ts) + '</span><b class="num">' + wfmt(p.w) + ' lb × ' + p.r + '</b></div>').join('') + '</div></section>';
+  return h;
+}
+function lineChart(pts) {
+  const W = 340, H = 190, L = 34, R = 26, T = 18, B = 26, pw = W - L - R, ph = H - T - B;
+  let lo = Math.min(...pts.map(p => p.w)), hi = Math.max(...pts.map(p => p.w));
+  if (hi === lo) { lo -= 5; hi += 5; } else { const pad2 = (hi - lo) * .2; lo -= pad2; hi += pad2; }
+  const step = (hi - lo) > 30 ? 10 : (hi - lo) > 12 ? 5 : 2.5;
+  const t0 = pts[0].ts, t1 = pts[pts.length - 1].ts;
+  const x = p => pts.length === 1 || t1 === t0 ? L + pw / 2 : L + (p.ts - t0) / (t1 - t0) * pw;
+  const y = v => T + ph - (v - lo) / (hi - lo) * ph;
+  let s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Top weight over time">';
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) s += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + wfmt(v) + '</text>';
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + x(p).toFixed(1) + ' ' + y(p.w).toFixed(1)).join(' ');
+  if (pts.length > 1) s += '<path class="ar" d="' + line + ' L' + x(pts[pts.length - 1]) + ' ' + (T + ph) + ' L' + x(pts[0]) + ' ' + (T + ph) + ' Z"/><path class="ln" d="' + line + '"/>';
+  pts.forEach((p, i) => { s += '<circle class="pt' + (i === pts.length - 1 ? ' last' : '') + '" cx="' + x(p) + '" cy="' + y(p.w) + '" r="' + (i === pts.length - 1 ? 5 : 4) + '"/>'; });
+  const lp = pts[pts.length - 1];
+  s += '<text class="endl" x="' + Math.min(x(lp), W - R - 6) + '" y="' + (y(lp.w) - 10) + '" text-anchor="' + (x(lp) > W - 50 ? 'end' : 'middle') + '">' + wfmt(lp.w) + '</text>';
+  s += '<text x="' + L + '" y="' + (H - 6) + '" text-anchor="start">' + shortDate(t0) + '</text>';
+  if (pts.length > 1) s += '<text x="' + (W - R) + '" y="' + (H - 6) + '" text-anchor="end">' + shortDate(t1) + '</text>';
+  return s + '</svg>';
+}
+
+/* ---------- Settings ---------- */
+function viewSettings() {
+  const S = state.settings;
+  const f = (id, label, v, extra) => '<div class="fld"><label for="' + id + '">' + label + '</label><input id="' + id + '" class="in num" inputmode="decimal" data-set="' + id + '" value="' + v + '"' + (extra || '') + '></div>';
+  return '<div class="top"><h1>Settings</h1></div><div class="stack">' +
+    '<section class="card stack"><div class="label">Daily goals</div>' + f('proteinGoal', 'Protein (g)', S.proteinGoal) + f('calGoal', 'Calories (kcal)', S.calGoal) + '</section>' +
+    '<section class="card stack"><div class="label">Workout</div>' + f('sets', 'Sets per superset', S.sets) + f('restSec', 'Rest target (seconds)', S.restSec) +
+    '<div class="fld"><label for="step">Weight step (lb per tap)</label><select id="step" class="in" data-set="step"><option value="2.5"' + (S.step == 2.5 ? ' selected' : '') + '>2.5 lb</option><option value="5"' + (S.step == 5 ? ' selected' : '') + '>5 lb</option><option value="10"' + (S.step == 10 ? ' selected' : '') + '>10 lb</option></select></div></section>' +
+    '<section class="card stack"><div class="label">Food estimates</div>' +
+    (state.ai ? '<div class="note">Connected. Estimates run through your own Claude account when you tap Estimate. No API key needed.' + (state.aiImages === false ? ' Photo input isn’t available in this view, so use text.' : '') + '</div>'
+      : '<div class="note">' + (state.aiReady ? 'Claude isn’t available in this view, so estimates are off. Manual entry still works.' : 'Checking…') + '</div>') + '</section>' +
+    '<section class="card stack"><div class="label">Backup</div><p class="small muted" style="margin:0">' + (memMode ? 'Browser storage is blocked here, so data lasts only until you close this page. ' : 'Everything is stored in this browser only. ') + 'Copy a backup now and then.</p>' +
+    '<textarea id="bk" class="in" style="font-size:13px;min-height:90px" placeholder="Backup JSON appears here. Paste one here to restore.">' + esc(state.backupMsg) + '</textarea>' +
+    '<div class="grid2"><button class="btn sm" data-act="exportBk">Copy backup</button><button class="btn sm' + (state.arm === 'restore' ? ' armed' : '') + '" data-act="restoreBk">' + (state.arm === 'restore' ? 'Tap to replace data' : 'Restore') + '</button></div>' +
+    '<button class="btn danger sm' + (state.arm === 'wipe' ? ' armed' : '') + '" data-act="wipe">' + (state.arm === 'wipe' ? 'Tap again to erase everything' : 'Erase all data') + '</button></section></div>';
+}
+
+/* ============================================================
+   Events
+   ============================================================ */
+function armed(key) {
+  if (state.arm === key) { state.arm = null; return true; }
+  state.arm = key; render(); clearTimeout(armed.t); armed.t = setTimeout(() => { if (state.arm === key) { state.arm = null; render(); } }, 3500);
+  return false;
+}
+function openCf(c) { state.cf = c; state.sheet = 'confirm'; render(); }
+function addFoodEntry(f) {
+  f.date = state.viewDate; f.ts = Date.now();
+  return safe(async () => { f.id = await db.foods.add(f); }).then(() => { if (f.id == null) f.id = Date.now() + Math.random(); state.foods.push(f); });
+}
+
+const ACT = {
+  nav(el) { state.tab = el.dataset.tab; state.arm = null; render(); window.scrollTo(0, 0); },
+  dayPrev() { state.viewDate = addDays(state.viewDate, -1); render(); },
+  dayNext() { if (state.viewDate < todayKey()) { state.viewDate = addDays(state.viewDate, 1); render(); } },
+  openAdd() { state.add = { text: '', photo: null, photoUrl: '', status: 'idle', error: '' }; state.sheet = 'add'; render(); },
+  closeSheet() { if (state.ctl) state.ctl.abort(); if (state.add && state.add.photoUrl) URL.revokeObjectURL(state.add.photoUrl); state.sheet = null; state.add = null; state.cf = null; state.arm = null; render(); },
+  scrim(el, ev) { if (ev.target === el) ACT.closeSheet(); },
+  clearPhoto() { captureDraft(); URL.revokeObjectURL(state.add.photoUrl); state.add.photo = null; state.add.photoUrl = ''; render(); },
+  cancelEst() { if (state.ctl) state.ctl.abort(); },
+  estimate() { estimate(); },
+  manual() { captureDraft(); openCf({ name: (state.add && state.add.text || '').slice(0, 60), portion: '', p: 0, cal: 0, c: 0, f: 0, base: null }); },
+  scale(el) {
+    const c = state.cf, m = parseFloat(el.dataset.m); if (!c.base) return;
+    c.mult = m; c.p = r1(c.base.p * m); c.cal = Math.round(c.base.cal * m); c.c = r1(c.base.c * m); c.f = r1(c.base.f * m);
+    c.name = $('#cfName').value; c.portion = $('#cfPortion').value; render();
+  },
+  async saveFood() {
+    readCf(); const c = state.cf; if (!c.name) c.name = 'Food';
+    if (c.id != null) {
+      const i = state.foods.findIndex(f => f.id === c.id), old = state.foods[i];
+      const nf = { ...old, name: c.name, portion: c.portion, p: c.p, cal: c.cal, c: c.c, f: c.f };
+      state.foods[i] = nf; await safe(() => db.foods.put(nf));
+    } else { await addFoodEntry({ name: c.name, portion: c.portion, p: c.p, cal: c.cal, c: c.c, f: c.f }); }
+    ACT.closeSheet(); toast('Saved');
+  },
+  editFood(el) {
+    const f = state.foods.find(x => String(x.id) === el.dataset.id); if (!f) return;
+    openCf({ id: f.id, name: f.name, portion: f.portion || '', p: f.p, cal: f.cal, c: f.c, f: f.f, base: { p: f.p, cal: f.cal, c: f.c, f: f.f }, mult: 1 });
+  },
+  async delFood() {
+    if (!armed('delFood')) return;
+    const id = state.cf.id, f = state.foods.find(x => x.id === id);
+    state.foods = state.foods.filter(x => x.id !== id); await safe(() => db.foods.delete(id));
+    ACT.closeSheet();
+    toast('Entry deleted', async () => { state.foods.push(f); await safe(() => db.foods.put(f)); render(); });
+  },
+  async quick(el) {
+    const r = state.recents[+el.dataset.i]; if (!r) return;
+    const f = { name: r.name, portion: r.portion, p: r.p, cal: r.cal, c: r.c, f: r.f };
+    await addFoodEntry(f); render();
+    toast('Added ' + r.name, async () => { state.foods = state.foods.filter(x => x !== f); await safe(() => db.foods.delete(f.id)); render(); });
+  },
+  undo() { const u = toast.undo; $('#toast').classList.remove('show'); toast.undo = null; u && u(); },
+
+  startWk() { startWorkout(); },
+  adj(el) {
+    const wk = ensureWk(), id = el.dataset.ex, f = el.dataset.f, d = +el.dataset.d;
+    const v = wk.input[id]; v[f] = f === 'w' ? Math.max(0, r1(v[f] + d * state.settings.step)) : Math.max(0, Math.round(v[f] + d));
+    const inp = document.querySelector('[data-in="' + id + '.' + f + '"]'); if (inp) inp.value = f === 'w' ? wfmt(v[f]) : v[f];
+  },
+  logSet() { logSet(); },
+  skipSS() { const s = state.active; s.cur = { ss: s.cur.ss + 1, set: 1, target: state.settings.sets }; state.wk = null; persistActive(); render(); },
+  undoSet() {
+    const s = state.active, l = s.logs.pop(); if (!l) return;
+    s.cur = { ss: ssIndex(l.ss), set: l.set, target: Math.max(s.cur.target, l.set) };
+    s.restStart = null; state.wk = null; persistActive(); render(); toast('Last set removed');
+  },
+  restDone() { restDone(); },
+  moreSet() { const s = state.active; s.cur.target = s.cur.set + 1; restDone(); },
+  skipRest() { const s = state.active; s.cur.target = s.cur.set; restDone(); },
+  finishWk() { if (armed('finish')) finishWorkout(); },
+  hTab(el) { state.hTab = el.dataset.t; render(); },
+  toggleSess(el) { const id = +el.dataset.id; state.openSess = state.openSess === id ? null : id; render(); },
+  async delSess(el) {
+    if (!armed('delS' + el.dataset.id)) return;
+    const id = +el.dataset.id; state.sessions = state.sessions.filter(s => s.id !== id); state.openSess = null;
+    await safe(() => db.sessions.delete(id)); render(); toast('Workout deleted');
+  },
+
+  async exportBk() {
+    const data = JSON.stringify({ v: 1, foods: state.foods, sessions: state.sessions.filter(s => s.status === 'done'), settings: state.settings });
+    state.backupMsg = data;
+    try { await navigator.clipboard.writeText(data); toast('Backup copied'); } catch (e) { toast('Select the text below and copy it'); }
+    render(); const t = $('#bk'); if (t) { t.focus(); t.select(); }
+  },
+  async restoreBk() {
+    const t = $('#bk'); let o;
+    try { o = JSON.parse(t.value); if (!o || !Array.isArray(o.foods) || !Array.isArray(o.sessions)) throw 0; } catch (e) { toast('Paste a backup into the box first'); return; }
+    if (!armed('restore')) return;
+    await safe(async () => {
+      await db.foods.clear(); await db.sessions.clear();
+      for (const f of o.foods) await db.foods.put(f);
+      for (const s of o.sessions) await db.sessions.put(s);
+      for (const [k, v] of Object.entries(o.settings || {})) if (k in DEFAULTS) await db.settings.put({ key: k, value: v });
+    });
+    await loadAll(); state.backupMsg = ''; render(); toast('Backup restored');
+  },
+  async wipe() {
+    if (!armed('wipe')) return;
+    await safe(async () => { await db.foods.clear(); await db.sessions.clear(); await db.settings.clear(); });
+    state.foods = []; state.sessions = []; state.active = null; state.wk = null; state.settings = { ...DEFAULTS }; render(); toast('All data erased');
+  },
+};
+
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act]'); if (!el || el.disabled) return;
+  const fn = ACT[el.dataset.act]; if (fn) fn(el, ev);
+});
+document.addEventListener('input', ev => {
+  const el = ev.target;
+  if (el.dataset.in) {
+    const [id, f] = el.dataset.in.split('.'), wk = ensureWk();
+    wk.input[id][f] = f === 'w' ? Math.max(0, num(el.value)) : Math.max(0, Math.round(num(el.value)));
+  }
+});
+document.addEventListener('change', async ev => {
+  const el = ev.target;
+  if (el.dataset.set) {
+    const k = el.dataset.set; let v = num(el.value, DEFAULTS[k]);
+    if (k === 'sets') v = Math.min(10, Math.max(1, Math.round(v)));
+    else if (k === 'restSec') v = Math.min(600, Math.max(10, Math.round(v)));
+    else if (k === 'step') v = v || 5; else v = Math.max(1, Math.round(v));
+    await setSetting(k, v); el.value = v; toast('Saved');
+  } else if (el.dataset.ch === 'hEx') { state.hEx = el.value; render(); }
+  else if (el.dataset.ch === 'photo' && el.files && el.files[0]) {
+    captureDraft(); const a = state.add;
+    if (a.photoUrl) URL.revokeObjectURL(a.photoUrl);
+    a.photo = await shrink(el.files[0]); a.photoUrl = URL.createObjectURL(a.photo); a.error = ''; render();
+  }
+});
+
+/* Rest timer: patches only the clock, ring and header so inputs are never re-rendered. */
+setInterval(() => {
+  const s = state.active; if (!s) return;
+  const el = $('#wkElapsed'); if (el) el.textContent = mmss((Date.now() - s.ts) / 1000);
+  if (!s.restStart) return;
+  const e = (Date.now() - s.restStart) / 1000, target = state.settings.restSec, C = 2 * Math.PI * 100;
+  const clk = $('#restClock'); if (clk) clk.textContent = mmss(e);
+  const fg = $('#ringFg'); if (fg) fg.setAttribute('stroke-dashoffset', C * (1 - Math.min(1, e / target)));
+  if (e >= target) {
+    const ring = $('#ring'); if (ring) ring.classList.add('ready');
+    const sub = $('#restSub'); if (sub) sub.textContent = 'Ready when you are';
+    if (!state.alerted) { state.alerted = true; beep(); }
+  }
+}, 250);
+
+/* ---------- Boot ---------- */
+(async function boot() {
+  await initDb();
+  try { await loadAll(); } catch (e) { toast('Could not read saved data'); }
+  if (state.active) { state.tab = 'workout'; keepAwake(); }
+  render();
+  if (memMode) toast('Storage is blocked here. Data won’t persist.');
+  try {
+    const s = window.claude && await window.claude.use('sample');
+    state.ai = s || null;
+    if (s) { const lim = await s.limits().catch(() => null); state.aiImages = !!(lim && lim.images); }
+  } catch (e) { state.ai = null; }
+  state.aiReady = true;
+  if (state.sheet === 'add' && state.add && state.add.status === 'idle') render();
+  else if (state.tab === 'settings') render();
+})();
+</script>
