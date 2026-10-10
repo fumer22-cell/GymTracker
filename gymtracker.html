@@ -1,169 +1,268 @@
 <title>Gym Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
 <style>
-/* Layout: one narrow column, thumb-reach controls pinned to the bottom (nav + a dock for the main action). */
+/* Layout: dark gym-floor look. One narrow column, floating tab bar, main action docked at thumb height.
+   Tiers run cool to hot (t1..t4) so the ladder reads as getting heavier. */
 :root{
-  --bg:#f1f4f5; --surface:#ffffff; --surface2:#e6edef; --line:#d3dce0;
-  --fg:#0f1a1f; --muted:#556670;
-  --accent:#087f6f; --on-accent:#ffffff; --accent-dim:#a6d6ce;
-  --cal:#a2610c; --carb:#2d5ccb; --fat:#c0412a; --good:#1b8749; --danger:#c23a2e;
+  --bg:#090c0f; --surface:#11171c; --surface2:#19212a; --surface3:#232d38; --line:#232f3a;
+  --fg:#edf2f5; --muted:#8a99a6;
+  --accent:#38e1c6; --accent-2:#1fb29b; --on-accent:#03201a;
+  --cal:#ffbf5e; --carb:#7eaaff; --fat:#ff8d75; --good:#5fe08e; --danger:#ff6f62;
+  --t1:#4fd6c4; --t2:#74b4ff; --t3:#ffbd4a; --t4:#ff6a55;
+  --glow:rgba(56,225,198,.11); --hi:rgba(255,255,255,.05); --shadow:rgba(0,0,0,.5); --scrim:rgba(2,5,8,.66);
   --font-d:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
   --font-b:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --nav:62px;
+  --nav:86px; color-scheme:dark;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0c1013; --surface:#141a1f; --surface2:#1d252c; --line:#28333c;
-  --fg:#eaf0f3; --muted:#8c9ba6;
-  --accent:#3ddbc2; --on-accent:#03201b; --accent-dim:#1c5b52;
-  --cal:#f3b756; --carb:#7ba6ff; --fat:#ff8f78; --good:#5fd98b; --danger:#ff7266;
-  color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0c1013; --surface:#141a1f; --surface2:#1d252c; --line:#28333c;
-  --fg:#eaf0f3; --muted:#8c9ba6;
-  --accent:#3ddbc2; --on-accent:#03201b; --accent-dim:#1c5b52;
-  --cal:#f3b756; --carb:#7ba6ff; --fat:#ff8f78; --good:#5fd98b; --danger:#ff7266;
-  color-scheme:dark}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){
+  --bg:#edf1f3; --surface:#ffffff; --surface2:#e6ecef; --surface3:#d9e1e5; --line:#d3dde2;
+  --fg:#0e181d; --muted:#52636e;
+  --accent:#007f6e; --accent-2:#006a5b; --on-accent:#ffffff;
+  --cal:#a35d05; --carb:#2a5ac8; --fat:#bb3f28; --good:#177f45; --danger:#bf352a;
+  --t1:#00806f; --t2:#2a62c8; --t3:#a35d05; --t4:#c23d28;
+  --glow:rgba(0,127,110,.09); --hi:rgba(255,255,255,.7); --shadow:rgba(20,40,50,.2); --scrim:rgba(10,20,26,.5);
+  color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#edf1f3; --surface:#ffffff; --surface2:#e6ecef; --surface3:#d9e1e5; --line:#d3dde2;
+  --fg:#0e181d; --muted:#52636e;
+  --accent:#007f6e; --accent-2:#006a5b; --on-accent:#ffffff;
+  --cal:#a35d05; --carb:#2a5ac8; --fat:#bb3f28; --good:#177f45; --danger:#bf352a;
+  --t1:#00806f; --t2:#2a62c8; --t3:#a35d05; --t4:#c23d28;
+  --glow:rgba(0,127,110,.09); --hi:rgba(255,255,255,.7); --shadow:rgba(20,40,50,.2); --scrim:rgba(10,20,26,.5);
+  color-scheme:light}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{min-height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-b);font-size:16px;line-height:1.35;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-b);font-size:16px;line-height:1.35;-webkit-text-size-adjust:100%;position:relative}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(90% 46% at 50% -6%,var(--glow),transparent 72%)}
 body.lock{overflow:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none;touch-action:manipulation}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-#app{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:14px calc(var(--nav) + 120px)}
+#app{position:relative;z-index:1;max-width:560px;margin:0 auto;padding-inline:16px;padding-block:14px calc(var(--nav) + 118px)}
+.enter{animation:rise .32s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0}to{opacity:1}}
 .num{font-variant-numeric:tabular-nums}
 .disp{font-family:var(--font-d);font-weight:800;letter-spacing:.01em}
-.label{font-family:var(--font-d);font-weight:700;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.label{font-family:var(--font-d);font-weight:700;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 h1,h2,h3{margin:0;text-wrap:balance}
 .row{display:flex;align-items:center;gap:12px}
 .between{justify-content:space-between}
 .grow{flex:1;min-width:0}
-.stack{display:flex;flex-direction:column;gap:12px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.tight{gap:8px}
 .muted{color:var(--muted)}
 .small{font-size:14px}
-.hide{display:none!important}
+.ic{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
-/* Cards and buttons */
-.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 20px;border-radius:12px;background:var(--surface2);font-weight:600;font-size:17px;width:100%}
-.btn.primary{background:var(--accent);color:var(--on-accent);min-height:64px;font-family:var(--font-d);font-weight:800;font-size:26px;letter-spacing:.04em;text-transform:uppercase}
+/* Surfaces */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:inset 0 1px 0 var(--hi)}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 20px;border-radius:16px;background:var(--surface2);font-weight:600;font-size:17px;width:100%;transition:transform .08s,background .15s}
+.btn:active{transform:scale(.98)}
+.btn.primary{--b:var(--accent);min-height:64px;color:var(--on-accent);font-family:var(--font-d);font-weight:800;font-size:26px;letter-spacing:.05em;text-transform:uppercase;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--b) 82%,#fff),var(--b));box-shadow:0 8px 22px -8px var(--b),inset 0 1px 0 rgba(255,255,255,.35)}
 .btn.ghost{background:transparent;border:1.5px solid var(--line)}
 .btn.danger{background:transparent;border:1.5px solid var(--danger);color:var(--danger)}
 .btn.armed{background:var(--danger);color:#fff;border-color:var(--danger)}
 .btn[disabled]{opacity:.45;pointer-events:none}
-.btn.sm{min-height:48px;font-size:16px}
-.link{color:var(--muted);text-decoration:underline;min-height:48px;padding:0 8px;font-size:16px}
-.pill{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:4px 12px;background:var(--surface2);font-size:14px;font-weight:600}
+.btn.sm{min-height:50px;font-size:16px;border-radius:14px}
+.link{color:var(--muted);min-height:48px;padding:0 10px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:5px 12px;background:var(--surface2);font-size:14px;font-weight:600;white-space:nowrap}
+.tchip{--tc:var(--accent);display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:99px;font-family:var(--font-d);font-weight:700;font-size:15px;letter-spacing:.1em;text-transform:uppercase;color:var(--tc);background:color-mix(in srgb,var(--tc) 14%,transparent);border:1px solid color-mix(in srgb,var(--tc) 38%,transparent)}
+.iconbtn{width:48px;height:48px;border-radius:14px;background:var(--surface2);display:grid;place-items:center;flex:none}
+.iconbtn[disabled]{opacity:.3;pointer-events:none}
 
 /* Header */
-.top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:52px;margin-bottom:10px}
-.top h1{font-family:var(--font-d);font-weight:800;font-size:34px;letter-spacing:.02em;text-transform:uppercase}
-.iconbtn{width:48px;height:48px;border-radius:12px;background:var(--surface2);display:grid;place-items:center;font-size:22px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:56px;margin-bottom:12px}
+.top h1{font-family:var(--font-d);font-weight:800;font-size:38px;letter-spacing:.02em;text-transform:uppercase;line-height:1}
+.top .sub{font-size:14px;color:var(--muted);font-weight:500}
 
-/* Bottom nav */
-.nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.nav-in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
-.nav button{height:var(--nav);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--muted);font-size:13px;font-weight:600}
+/* Floating tab bar */
+.nav{position:fixed;left:0;right:0;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:30;padding-inline:12px;pointer-events:none}
+.nav-in{pointer-events:auto;max-width:536px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px;border-radius:26px;background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:0 12px 30px -10px var(--shadow),inset 0 1px 0 var(--hi)}
+.nav button{height:62px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--muted);font-size:12.5px;font-weight:600}
+.nav .ico{width:48px;height:30px;border-radius:15px;display:grid;place-items:center;transition:background .2s}
+.nav .ic{width:24px;height:24px}
 .nav button[aria-current="page"]{color:var(--accent)}
-.nav svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.dock{position:fixed;left:0;right:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom,0px));z-index:25;background:var(--bg);border-top:1px solid var(--line)}
-.dock-in{max-width:560px;margin:0 auto;padding:10px 16px;display:flex;flex-direction:column;gap:6px}
+.nav button[aria-current="page"] .ico{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.dock{position:fixed;left:0;right:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom,0px));z-index:25;background:linear-gradient(to top,var(--bg) 62%,transparent)}
+.dock-in{max-width:560px;margin:0 auto;padding:22px 16px 6px;display:flex;flex-direction:column;gap:6px}
 
-/* Food dashboard */
-.hero{padding:18px 16px 16px}
-.hero .big{font-size:84px;line-height:.9;color:var(--accent)}
-.hero .of{font-family:var(--font-d);font-weight:700;font-size:30px;color:var(--muted)}
-.bar{height:22px;border-radius:99px;background:var(--surface2);overflow:hidden}
-.bar>i{display:block;height:100%;border-radius:99px;background:var(--accent);transition:width .35s}
-.bar.thin{height:10px}
-.bar.cal>i{background:var(--cal)}
-.bar.over>i{background:var(--good)}
-.mini{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.mini .v{font-family:var(--font-d);font-weight:800;font-size:30px}
-.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-inline:-16px;padding-inline:16px}
+/* Food: protein hero */
+.hero{padding:20px 18px 18px;background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 10%,var(--surface)),var(--surface) 60%);overflow:hidden}
+.hero-num{display:flex;align-items:baseline;gap:10px;margin:8px 0 14px}
+.hero-num .big{font-family:var(--font-d);font-weight:800;font-size:96px;line-height:.82;color:var(--accent);letter-spacing:-.01em}
+.hero-num .of{font-family:var(--font-d);font-weight:700;font-size:30px;color:var(--muted)}
+.meter{position:relative;height:28px;border-radius:99px;background:var(--surface2);overflow:hidden;box-shadow:inset 0 2px 4px rgba(0,0,0,.25)}
+.meter>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent-2),var(--accent));box-shadow:0 0 18px -2px var(--accent);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.meter::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 24.6%,var(--bg) 24.6% 25.4%,transparent 25.4% 49.6%,var(--bg) 49.6% 50.4%,transparent 50.4% 74.6%,var(--bg) 74.6% 75.4%,transparent 75.4%);opacity:.55}
+.meter.done>i{background:linear-gradient(90deg,var(--good),var(--accent))}
+.bar{height:10px;border-radius:99px;background:var(--surface2);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:99px;background:var(--cal);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:var(--surface2);border-radius:14px;padding:12px 14px}
+.tile .v{font-family:var(--font-d);font-weight:800;font-size:34px;line-height:1.05}
+.tile .v small{font-size:16px;font-weight:700;margin-left:2px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px}
+.split{display:flex;height:12px;border-radius:99px;overflow:hidden;gap:2px;background:var(--surface2)}
+.split i{display:block;height:100%}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:500}
+
+.chips{display:flex;gap:10px;overflow-x:auto;padding:2px 16px 6px;margin-inline:-16px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:none;min-height:48px;padding:6px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--line);text-align:left;max-width:200px}
+.chip{flex:none;min-height:56px;padding:8px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);text-align:left;max-width:210px;box-shadow:inset 0 1px 0 var(--hi)}
 .chip b{display:block;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip span{font-size:13px;color:var(--muted)}
-.chip.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-.chip.on span{color:var(--on-accent)}
-.entry{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:10px 4px;text-align:left;border-bottom:1px solid var(--line)}
+.chip em{font-style:normal;color:var(--accent);font-weight:700}
+
+.entry{display:flex;align-items:center;gap:12px;width:100%;min-height:68px;padding:10px 2px;text-align:left;border-bottom:1px solid var(--line)}
 .entry:last-child{border-bottom:0}
-.entry .p{font-family:var(--font-d);font-weight:800;font-size:28px;color:var(--accent);text-align:right;min-width:62px}
+.avatar{width:46px;height:46px;border-radius:14px;flex:none;object-fit:cover;display:grid;place-items:center;font-family:var(--font-d);font-weight:800;font-size:22px;color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface2))}
+.entry .p{font-family:var(--font-d);font-weight:800;font-size:30px;line-height:1;color:var(--accent);text-align:right;min-width:60px}
+.entry .p small{font-size:15px;color:var(--muted);margin-left:1px}
 .entry .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry .m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aitag{width:14px;height:14px;vertical-align:-2px;margin-right:4px;color:var(--accent)}
 
 /* Sheets */
-.scrim{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
-.sheet{width:100%;max-width:560px;max-height:94%;overflow-y:auto;background:var(--bg);border-radius:20px 20px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.scrim{position:fixed;inset:0;z-index:50;background:var(--scrim);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center}
+.scrim.pop{animation:fade .2s ease both}
+.scrim.pop .sheet{animation:slide .3s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes slide{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.sheet{width:100%;max-width:560px;max-height:94%;overflow-y:auto;overscroll-behavior:contain;background:var(--bg);border:1px solid var(--line);border-bottom:0;border-radius:26px 26px 0 0;padding:8px 16px 0;display:flex;flex-direction:column;gap:14px}
+.sheet>*{flex:none}
+.grab{width:42px;height:5px;border-radius:3px;background:var(--surface3);margin:2px auto 0;flex:none}
+.sheet-foot{position:sticky;bottom:0;margin-inline:-16px;padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 70%,transparent);display:flex;flex-direction:column;gap:8px;flex:none}
 .fld{display:flex;flex-direction:column;gap:6px}
-.fld label{font-size:14px;color:var(--muted);font-weight:600}
-.in{width:100%;min-height:54px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);padding:0 14px;font-size:18px}
-textarea.in{padding:12px 14px;min-height:96px;resize:vertical}
+.fld label{font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.in{width:100%;min-height:54px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);padding:0 14px;font-size:18px;transition:border-color .15s}
+.in:focus{border-color:var(--accent);outline:none}
+textarea.in{padding:12px 14px;min-height:92px;resize:vertical;line-height:1.35}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.photo-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.photo-row label.btn{cursor:pointer}
-.thumb{width:100%;max-height:220px;object-fit:cover;border-radius:12px}
-.mults{display:flex;gap:8px;flex-wrap:wrap}
-.mults button{flex:1 1 56px;min-height:48px;border-radius:10px;background:var(--surface2);font-weight:600}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.src{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.src label{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:104px;border-radius:18px;background:var(--surface);border:1.5px dashed var(--surface3);font-weight:600;cursor:pointer}
+.src label .ic{width:30px;height:30px;color:var(--accent)}
+.thumb{width:100%;max-height:220px;object-fit:cover;border-radius:16px;display:block}
+.mults{display:flex;gap:8px}
+.mults button{flex:1;min-height:48px;border-radius:12px;background:var(--surface2);font-weight:700}
 .mults button.on{background:var(--accent);color:var(--on-accent)}
-.spin{width:34px;height:34px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--accent);animation:sp 0.9s linear infinite}
+.spin{width:36px;height:36px;border-radius:50%;border:4px solid var(--surface3);border-top-color:var(--accent);animation:sp .9s linear infinite;flex:none}
+.spin.sm{width:20px;height:20px;border-width:3px}
 @keyframes sp{to{transform:rotate(360deg)}}
-.err{border:1.5px solid var(--danger);border-radius:12px;padding:12px 14px;color:var(--danger);font-weight:500}
-.note{border-radius:12px;padding:12px 14px;background:var(--surface2);font-size:15px}
+.err{border:1.5px solid var(--danger);border-radius:14px;padding:12px 14px;color:var(--danger);font-weight:500;font-size:15px}
+.note{border-radius:14px;padding:12px 14px;background:var(--surface2);font-size:15px}
+.in.flash{animation:flash 1.2s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 4px var(--accent);border-color:var(--accent)}100%{box-shadow:0 0 0 0 transparent}}
+.mainmacro{font-family:var(--font-d);font-weight:800;font-size:44px!important;min-height:68px!important;color:var(--accent)}
+
+/* Claude: reasoning + refine */
+.why{padding:0;overflow:hidden}
+.why-h{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 16px;text-align:left}
+.why-h .sp{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface2));flex:none}
+.why-h .chev{transition:transform .2s;color:var(--muted)}
+.why.open .chev{transform:rotate(180deg)}
+.why-b{padding:0 16px 16px;display:flex;flex-direction:column;gap:14px}
+.why-b p{margin:0;font-size:16px;line-height:1.45}
+.brk{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:10px 0;border-top:1px solid var(--line)}
+.brk .n{font-weight:600}
+.brk .pt{font-size:13px;color:var(--muted)}
+.brk .v{text-align:right;font-weight:700}
+.brk .v small{display:block;font-weight:500;font-size:13px;color:var(--muted)}
+.brk.tot{border-top:2px solid var(--surface3)}
+.brk.tot .v{color:var(--accent)}
+.bul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:15px}
+.bul li{display:flex;gap:10px}
+.bul li::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:8px;flex:none}
+.conf{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--surface3);flex:none}
+.conf.high{color:var(--good)} .conf.medium{color:var(--cal)} .conf.low{color:var(--danger)}
+.thread{display:flex;flex-direction:column;gap:10px}
+.bub{max-width:88%;padding:10px 14px;border-radius:18px;font-size:15px;display:flex;flex-direction:column;gap:6px}
+.bub.u{align-self:flex-end;background:var(--accent);color:var(--on-accent);border-bottom-right-radius:6px;font-weight:500}
+.bub.a{align-self:flex-start;background:var(--surface2);border-bottom-left-radius:6px}
+.dchips{display:flex;flex-wrap:wrap;gap:6px}
+.dchip{font-size:13px;font-weight:700;padding:2px 9px;border-radius:99px;background:var(--surface3)}
+.dchip.p{color:var(--accent)} .dchip.k{color:var(--cal)} .dchip.c{color:var(--carb)} .dchip.f{color:var(--fat)}
+.sugg{display:flex;gap:8px;flex-wrap:wrap}
+.sugg button{min-height:44px;padding:0 14px;border-radius:99px;background:var(--surface2);font-size:14px;font-weight:600}
+.fu{display:flex;gap:8px;align-items:flex-end}
+.fu textarea{min-height:56px;flex:1;min-width:0}
+.send{width:56px;height:56px;border-radius:16px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;flex:none}
+.send[disabled]{opacity:.45;pointer-events:none}
+.attach{width:56px;height:56px;border-radius:16px;background:var(--surface2);display:grid;place-items:center;flex:none;cursor:pointer}
 
 /* Workout */
-.tier{display:flex;gap:10px;align-items:center}
-.segs{display:flex;gap:4px}
+.segs{display:flex;gap:5px}
 .segs i{flex:1;height:8px;border-radius:4px;background:var(--surface2)}
-.segs i.done{background:var(--accent)}
-.segs i.now{background:var(--fg)}
-.segs i.skip{background:var(--line)}
-.ssid{font-family:var(--font-d);font-weight:800;font-size:64px;line-height:.85;color:var(--accent)}
-.exc{display:flex;flex-direction:column;gap:12px}
-.exc h3{font-size:21px;font-weight:600;font-family:var(--font-b)}
-.beat{font-family:var(--font-d);font-weight:700;font-size:20px;color:var(--cal);white-space:nowrap}
-.step{display:grid;grid-template-columns:60px 1fr 60px;gap:8px;align-items:center}
-.step button{height:60px;border-radius:12px;background:var(--surface2);font-size:30px;font-weight:600;line-height:1}
+.segs i.done{background:var(--tc)}
+.segs i.now{background:var(--tc);box-shadow:0 0 12px var(--tc);height:10px;margin-top:-1px}
+.segs i.skip{background:var(--surface3)}
+.badge{--tc:var(--accent);width:76px;height:76px;border-radius:22px;display:grid;place-items:center;flex:none;font-family:var(--font-d);font-weight:800;font-size:46px;line-height:1;color:var(--tc);background:color-mix(in srgb,var(--tc) 14%,var(--surface));border:1.5px solid color-mix(in srgb,var(--tc) 42%,transparent);box-shadow:0 8px 24px -10px var(--tc)}
+.badge.sm{width:38px;height:38px;border-radius:12px;font-size:22px;box-shadow:none}
+.exc{display:flex;flex-direction:column;gap:12px;padding:16px}
+.exc h3{font-size:20px;font-weight:600;font-family:var(--font-b)}
+.beat{font-family:var(--font-d);font-weight:700;font-size:18px;color:var(--cal);white-space:nowrap;padding:3px 10px;border-radius:99px;background:color-mix(in srgb,var(--cal) 13%,transparent)}
+.step{display:grid;grid-template-columns:62px 1fr 62px;gap:8px;align-items:center}
+.step button{height:62px;border-radius:16px;background:var(--surface2);font-size:30px;font-weight:600;line-height:1}
+.step button:active{background:var(--surface3)}
 .step .val{position:relative}
-.step input{width:100%;height:60px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);text-align:center;font-family:var(--font-d);font-weight:800;font-size:38px;padding:0 34px 0 0;-moz-appearance:textfield}
+.step input{width:100%;height:62px;border-radius:16px;border:1.5px solid var(--line);background:var(--bg);text-align:center;font-family:var(--font-d);font-weight:800;font-size:40px;padding:0 36px 0 0;-moz-appearance:textfield}
+.step input:focus{outline:none;border-color:var(--tc,var(--accent))}
 .step input::-webkit-outer-spin-button,.step input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.step .u{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);font-weight:600;pointer-events:none}
+.step .u{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);font-weight:700;pointer-events:none}
 .lastline{font-size:14px;color:var(--muted)}
 .lastline b{color:var(--fg)}
-.ring{position:relative;width:240px;height:240px;margin:6px auto}
-.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ladder{position:relative;display:flex;flex-direction:column;gap:14px}
+.ladder::before{content:'';position:absolute;left:19px;top:24px;bottom:24px;width:3px;border-radius:2px;background:linear-gradient(var(--t1),var(--t2),var(--t3),var(--t4));opacity:.55}
+.rung{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:start}
+.node{position:relative;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--bg);border:3px solid var(--tc);color:var(--tc);font-family:var(--font-d);font-weight:800;font-size:22px;margin-top:10px}
+.ssrow{display:flex;gap:12px;align-items:center}
+.ring{position:relative;width:250px;height:250px;margin:4px auto}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
 .ring circle{fill:none;stroke-width:12}
 .ring .bg{stroke:var(--surface2)}
-.ring .fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .25s linear}
-.ring.ready .fg{stroke:var(--good)}
-.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.ring .clock{font-family:var(--font-d);font-weight:800;font-size:76px;line-height:1}
-.hist{display:flex;flex-direction:column}
-.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface2);border-radius:12px;padding:4px;gap:4px}
-.seg button{min-height:46px;border-radius:9px;font-weight:600;color:var(--muted)}
-.seg button.on{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.2)}
-.sess{width:100%;text-align:left;display:flex;flex-direction:column;gap:2px}
-.logrow{display:grid;grid-template-columns:44px 1fr;gap:4px 8px;font-size:15px;padding:6px 0;border-top:1px solid var(--line)}
+.ring .fg{stroke:var(--tc,var(--accent));stroke-linecap:round;transition:stroke-dashoffset .25s linear;filter:drop-shadow(0 0 8px var(--tc,var(--accent)))}
+.ring.ready .fg{stroke:var(--good);filter:drop-shadow(0 0 10px var(--good))}
+.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.ring .clock{font-family:var(--font-d);font-weight:800;font-size:82px;line-height:1}
+.logged{display:flex;align-items:center;gap:12px}
+.tick{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good);flex:none}
+.tick .ic{width:18px;height:18px;stroke-width:3}
+
+/* History */
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:4px;gap:4px}
+.seg button{min-height:46px;border-radius:12px;font-weight:700;color:var(--muted)}
+.seg button.on{background:var(--surface3);color:var(--fg)}
+.sess{width:100%;text-align:left;display:flex;align-items:center;gap:14px}
+.dblock{width:56px;height:60px;border-radius:16px;background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none}
+.dblock b{font-family:var(--font-d);font-weight:800;font-size:28px;line-height:1}
+.dblock span{font-family:var(--font-d);font-weight:700;font-size:13px;letter-spacing:.12em;color:var(--accent)}
+.stats{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.stats .pill{padding:3px 10px;font-size:13px}
+.logrow{display:grid;grid-template-columns:48px 1fr;gap:4px 10px;font-size:15px;padding:9px 0;border-top:1px solid var(--line);align-items:start}
 .chart{width:100%;height:auto;display:block}
 .chart text{fill:var(--muted);font-family:var(--font-b);font-size:11px}
 .chart .grid{stroke:var(--line);stroke-width:1}
-.chart .ln{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
-.chart .ar{fill:var(--accent);opacity:.14}
-.chart .pt{fill:var(--bg);stroke:var(--accent);stroke-width:2}
+.chart .ln{fill:none;stroke:var(--accent);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.chart .pt{fill:var(--bg);stroke:var(--accent);stroke-width:2.5}
 .chart .pt.last{fill:var(--accent)}
-.chart .bar1{fill:var(--accent-dim)}
-.chart .bar1.now{fill:var(--accent)}
-.chart .goal{stroke:var(--fg);stroke-width:1.2;stroke-dasharray:4 4;opacity:.55}
-.chart .val{fill:var(--fg);font-weight:600}
+.chart .goal{stroke:var(--fg);stroke-width:1.2;stroke-dasharray:4 5;opacity:.45}
+.chart .val{fill:var(--fg);font-weight:700}
 .chart .endl{fill:var(--fg);font-weight:700;font-size:12px}
 select.in{appearance:auto}
-#toast{position:fixed;left:16px;right:16px;bottom:calc(var(--nav) + 84px + env(safe-area-inset-bottom,0px));z-index:70;max-width:528px;margin:0 auto;display:none}
-#toast.show{display:flex}
-#toast .t{flex:1;background:var(--fg);color:var(--bg);border-radius:12px;padding:0 16px;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.35)}
-#toast button{color:var(--accent-dim);font-weight:800;min-height:48px;padding:0 4px;text-transform:uppercase;letter-spacing:.06em;filter:brightness(1.4)}
+
+/* Settings */
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:60px;padding:6px 0;border-top:1px solid var(--line)}
+.setrow label{font-weight:600;display:flex;flex-direction:column}
+.setrow label small{font-weight:400;color:var(--muted);font-size:13px}
+.setrow .in{width:120px;text-align:right;min-height:50px;font-weight:700}
+
+#toast{position:fixed;left:16px;right:16px;bottom:calc(var(--nav) + 86px + env(safe-area-inset-bottom,0px));z-index:70;max-width:528px;margin:0 auto;display:none}
+#toast.show{display:flex;animation:rise .25s ease both}
+#toast .t{flex:1;background:var(--fg);color:var(--bg);border-radius:16px;padding:0 8px 0 18px;min-height:54px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:600;box-shadow:0 10px 30px var(--shadow)}
+#toast button{color:var(--bg);font-weight:800;min-height:48px;padding:0 12px;text-transform:uppercase;letter-spacing:.08em;text-decoration:underline}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -187,8 +286,25 @@ const r1 = n => Math.round(n * 10) / 10;
 const fmt = n => Math.round(n).toLocaleString();
 const mmss = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + pad(sec % 60); };
 const shortDate = ts => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-const longDate = ts => new Date(ts).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const longDate = ts => new Date(ts).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
 const wfmt = w => (Math.round(w * 10) / 10).toString();
+const ic = (p, cls) => '<svg class="ic ' + (cls || '') + '" viewBox="0 0 24 24" aria-hidden="true">' + p + '</svg>';
+const I = {
+  today: '<path d="M7 3v8a3 3 0 0 0 3 3v7M7 3v5M10 3v5M17 3c-2 2-3 5-3 8h3v10"/>',
+  workout: '<path d="M3 9v6M6 6v12M18 6v12M21 9v6M6 12h12"/>',
+  history: '<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
+  settings: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-9 9"/>',
+  up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+  chev: '<path d="M6 9l6 6 6-6"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  left: '<path d="M15 6l-6 6 6 6"/>', right: '<path d="M9 6l6 6-6 6"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+};
 
 /* ---------- Workout definition ---------- */
 const TIERS = {
@@ -219,6 +335,7 @@ const SS = [
 ];
 const ssLabel = d => d.fin ? 'Finisher' : 'Superset ' + d.id;
 const ssIndex = id => SS.findIndex(d => d.id === id);
+const tvar = t => 'var(--t' + t + ')';
 
 /* ---------- Storage: Dexie, with an in-memory fallback if IndexedDB is blocked ---------- */
 let db, memMode = false;
@@ -244,9 +361,9 @@ async function initDb() {
 const DEFAULTS = { proteinGoal: 160, calGoal: 2600, sets: 3, restSec: 60, step: 5 };
 const state = {
   tab: 'today', viewDate: todayKey(), foods: [], sessions: [], settings: { ...DEFAULTS },
-  sheet: null, add: null, cf: null, active: null, wk: null,
+  sheet: null, add: null, cf: null, active: null, wk: null, enter: false, pop: false,
   hTab: 'sessions', hEx: 'lat', openSess: null, arm: null,
-  ai: null, aiImages: null, aiReady: false, ctl: null, backupMsg: '',
+  ai: null, aiImages: null, aiMax: 1, aiReady: false, ctl: null, backupMsg: '',
 };
 
 async function safe(fn) { try { return await fn(); } catch (e) { toast('Could not save to this browser'); return null; } }
@@ -265,6 +382,7 @@ const doneSessions = () => state.sessions.filter(s => s.status === 'done').sort(
 let toastTimer;
 function toast(msg, undo) {
   const el = $('#toast');
+  el.classList.remove('show'); void el.offsetWidth;
   el.innerHTML = '<div class="t"><span>' + esc(msg) + '</span>' + (undo ? '<button data-act="undo">Undo</button>' : '') + '</div>';
   el.classList.add('show');
   toast.undo = undo;
@@ -272,186 +390,326 @@ function toast(msg, undo) {
   toastTimer = setTimeout(() => el.classList.remove('show'), undo ? 5000 : 2600);
 }
 
-/* ---------- Icons ---------- */
-const ICON = {
-  today: '<svg viewBox="0 0 24 24"><path d="M7 3v8a3 3 0 0 0 3 3v7M7 3v5M10 3v5M17 3c-2 2-3 5-3 8h3v10"/></svg>',
-  workout: '<svg viewBox="0 0 24 24"><path d="M3 9v6M6 6v12M18 6v12M21 9v6M6 12h12"/></svg>',
-  history: '<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>',
-  settings: '<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
-};
-
 /* ============================================================
    Rendering
    ============================================================ */
 const app = $('#app');
 function captureDraft() {
   const t = $('#addText'); if (t && state.add) state.add.text = t.value;
+  if (state.sheet === 'confirm' && state.cf && $('#cfName')) { readCf(); const fu = $('#fuText'); if (fu) state.cf.fu = fu.value; }
 }
-function render() {
-  captureDraft();
+function render(skipCapture) {
+  if (!skipCapture) captureDraft();
+  const old = document.querySelector('.sheet'), st = old ? old.scrollTop : 0;
   const views = { today: viewToday, workout: viewWorkout, history: viewHistory, settings: viewSettings };
   const tabs = [['today', 'Food'], ['workout', 'Workout'], ['history', 'History'], ['settings', 'Settings']];
-  app.innerHTML = views[state.tab]() +
+  const enter = state.enter; state.enter = false;
+  app.innerHTML = '<div class="' + (enter ? 'enter' : '') + '">' + views[state.tab]() + '</div>' +
     '<nav class="nav" aria-label="Sections"><div class="nav-in">' +
-    tabs.map(([k, l]) => '<button data-act="nav" data-tab="' + k + '"' + (state.tab === k ? ' aria-current="page"' : '') + '>' + ICON[k === 'today' ? 'today' : k] + l + '</button>').join('') +
+    tabs.map(([k, l]) => '<button data-act="nav" data-tab="' + k + '"' + (state.tab === k ? ' aria-current="page"' : '') + '><span class="ico">' + ic(I[k]) + '</span>' + l + '</button>').join('') +
     '</div></nav>' + (state.sheet ? sheetHtml() : '');
   document.body.classList.toggle('lock', !!state.sheet);
+  const nu = document.querySelector('.sheet'); if (nu && old && !state.pop) nu.scrollTop = st;
+  state.pop = false; if (state.cf) state.cf.flash = null;
 }
 
 /* ---------- Food: dashboard ---------- */
 const totalsFor = date => state.foods.filter(f => f.date === date).reduce((a, f) => (a.p += f.p, a.cal += f.cal, a.c += f.c, a.f += f.f, a), { p: 0, cal: 0, c: 0, f: 0 });
+const timeOf = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
 function viewToday() {
   const d = state.viewDate, isToday = d === todayKey(), S = state.settings;
   const list = state.foods.filter(f => f.date === d).sort((a, b) => a.ts - b.ts);
   const t = totalsFor(d);
-  const pg = S.proteinGoal, left = Math.round(pg - t.p);
+  const pg = S.proteinGoal, left = Math.round(pg - t.p), pct = Math.round(t.p / pg * 100);
   const dateLabel = isToday ? 'Today' : parseKey(d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const sub = isToday ? parseKey(d).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : '';
   const seen = new Set(), recents = [];
   [...state.foods].sort((a, b) => b.ts - a.ts).forEach(f => { const k = f.name.trim().toLowerCase(); if (!seen.has(k) && recents.length < 12) { seen.add(k); recents.push(f); } });
   state.recents = recents;
-  return '<div class="top"><button class="iconbtn" data-act="dayPrev" aria-label="Previous day">‹</button>' +
-    '<h1>' + esc(dateLabel) + '</h1>' +
-    '<button class="iconbtn" data-act="dayNext" aria-label="Next day"' + (isToday ? ' disabled style="opacity:.3"' : '') + '>›</button></div>' +
+  const kp = t.p * 4, kc = t.c * 4, kf = t.f * 9, ks = kp + kc + kf;
+  const sp = v => ks ? (v / ks * 100).toFixed(1) : 0;
+  return '<div class="top"><button class="iconbtn" data-act="dayPrev" aria-label="Previous day">' + ic(I.left) + '</button>' +
+    '<div style="text-align:center"><h1>' + esc(dateLabel) + '</h1>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>' +
+    '<button class="iconbtn" data-act="dayNext" aria-label="Next day"' + (isToday ? ' disabled' : '') + '>' + ic(I.right) + '</button></div>' +
     '<div class="stack">' +
-    '<section class="card hero"><div class="label">Protein</div>' +
-    '<div class="row" style="align-items:baseline;gap:8px;margin:6px 0 12px"><span class="disp num big">' + fmt(t.p) + '</span><span class="of num">/ ' + fmt(pg) + ' g</span></div>' +
-    '<div class="bar' + (t.p >= pg ? ' over' : '') + '" role="progressbar" aria-valuemin="0" aria-valuemax="' + pg + '" aria-valuenow="' + Math.round(t.p) + '"><i style="width:' + Math.min(100, t.p / pg * 100) + '%"></i></div>' +
-    '<div class="small muted num" style="margin-top:8px">' + (left > 0 ? left + ' g to go' : 'Goal hit' + (left < 0 ? ' (+' + (-left) + ' g)' : '')) + '</div></section>' +
-    '<section class="card"><div class="row between"><span class="label">Calories</span><span class="num"><b>' + fmt(t.cal) + '</b> <span class="muted">/ ' + fmt(S.calGoal) + ' kcal</span></span></div>' +
-    '<div class="bar thin cal" style="margin:10px 0 14px"><i style="width:' + Math.min(100, t.cal / S.calGoal * 100) + '%"></i></div>' +
-    '<div class="mini"><div><div class="label">Carbs</div><div class="v num" style="color:var(--carb)">' + fmt(t.c) + '<small style="font-size:16px"> g</small></div></div>' +
-    '<div><div class="label">Fat</div><div class="v num" style="color:var(--fat)">' + fmt(t.f) + '<small style="font-size:16px"> g</small></div></div></div></section>' +
-    '<button class="btn primary" data-act="openAdd">+ Log food</button>' +
-    (recents.length ? '<div><div class="label" style="margin-bottom:8px">Quick add</div><div class="chips">' +
-      recents.map((f, i) => '<button class="chip" data-act="quick" data-i="' + i + '"><b>' + esc(f.name) + '</b><span class="num">' + fmt(f.p) + ' g protein · ' + fmt(f.cal) + ' kcal</span></button>').join('') + '</div></div>' : '') +
-    '<section class="card" style="padding:8px 12px"><div class="label" style="padding:8px 4px 2px">' + (isToday ? "Today's" : 'Day’s') + ' entries</div>' +
-    (list.length ? list.map(f => '<button class="entry" data-act="editFood" data-id="' + f.id + '"><div class="grow"><div class="t">' + esc(f.name) + '</div><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(f.portion || '') + (f.portion ? ' · ' : '') + fmt(f.cal) + ' kcal</div></div><div class="p num">' + fmt(f.p) + '<small style="font-size:15px">g</small></div></button>').join('')
-      : '<p class="muted" style="padding:6px 4px 12px;margin:0">Nothing logged yet. Tap “Log food” and snap a photo or type what you ate.</p>') + '</section>' +
-    '<section class="card"><div class="row between"><span class="label">Protein, last 7 days</span></div>' + proteinChart() + '</section>' +
+    '<section class="card hero"><div class="row between"><span class="label">Protein</span><span class="pill num">' + pct + '% of goal</span></div>' +
+    '<div class="hero-num"><span class="big num">' + fmt(t.p) + '</span><span class="of num">/ ' + fmt(pg) + ' g</span></div>' +
+    '<div class="meter' + (t.p >= pg ? ' done' : '') + '" role="progressbar" aria-valuemin="0" aria-valuemax="' + pg + '" aria-valuenow="' + Math.round(t.p) + '"><i style="width:' + Math.min(100, t.p / pg * 100) + '%"></i></div>' +
+    '<div class="row between small num" style="margin-top:10px"><b style="color:' + (left > 0 ? 'var(--fg)' : 'var(--good)') + '">' + (left > 0 ? left + ' g to go' : 'Goal hit' + (left < 0 ? ' · +' + (-left) + ' g' : '')) + '</b><span class="muted">' + list.length + (list.length === 1 ? ' entry' : ' entries') + '</span></div></section>' +
+    '<section class="card stack tight"><div class="row between"><span class="label">Calories</span><span class="num"><b style="font-size:20px">' + fmt(t.cal) + '</b> <span class="muted">/ ' + fmt(S.calGoal) + ' kcal</span></span></div>' +
+    '<div class="bar"><i style="width:' + Math.min(100, t.cal / S.calGoal * 100) + '%"></i></div>' +
+    '<div class="tiles" style="margin-top:6px"><div class="tile"><div class="label"><span class="dot" style="background:var(--carb)"></span>Carbs</div><div class="v num">' + fmt(t.c) + '<small>g</small></div></div>' +
+    '<div class="tile"><div class="label"><span class="dot" style="background:var(--fat)"></span>Fat</div><div class="v num">' + fmt(t.f) + '<small>g</small></div></div></div>' +
+    (ks ? '<div class="split" style="margin-top:8px" aria-label="Calorie split"><i style="width:' + sp(kp) + '%;background:var(--accent)"></i><i style="width:' + sp(kc) + '%;background:var(--carb)"></i><i style="width:' + sp(kf) + '%;background:var(--fat)"></i></div>' +
+      '<div class="legend num"><span><span class="dot" style="background:var(--accent)"></span>Protein ' + Math.round(kp / ks * 100) + '%</span><span><span class="dot" style="background:var(--carb)"></span>Carbs ' + Math.round(kc / ks * 100) + '%</span><span><span class="dot" style="background:var(--fat)"></span>Fat ' + Math.round(kf / ks * 100) + '%</span></div>' : '') +
+    '</section>' +
+    '<button class="btn primary" data-act="openAdd">' + ic(I.plus) + ' Log food</button>' +
+    (recents.length ? '<div class="stack tight"><div class="label">Quick add</div><div class="chips">' +
+      recents.map((f, i) => '<button class="chip" data-act="quick" data-i="' + i + '"><b>' + esc(f.name) + '</b><span class="num"><em>' + fmt(f.p) + ' g</em> · ' + fmt(f.cal) + ' kcal</span></button>').join('') + '</div></div>' : '') +
+    '<section class="card" style="padding:10px 14px"><div class="label" style="padding:8px 2px 4px">' + (isToday ? 'Today' : 'This day') + '</div>' +
+    (list.length ? list.map(f => '<button class="entry" data-act="editFood" data-id="' + f.id + '">' +
+      (f.thumb ? '<img class="avatar" src="' + f.thumb + '" alt="">' : '<div class="avatar">' + esc((f.name.trim()[0] || '?').toUpperCase()) + '</div>') +
+      '<div class="grow"><div class="t">' + (f.ai ? ic(I.spark, 'aitag') : '') + esc(f.name) + '</div><div class="m num">' + timeOf(f.ts) + ' · ' + fmt(f.cal) + ' kcal · ' + fmt(f.c) + 'c ' + fmt(f.f) + 'f</div></div>' +
+      '<div class="p num">' + fmt(f.p) + '<small>g</small></div></button>').join('')
+      : '<p class="muted" style="padding:6px 2px 14px;margin:0">Nothing logged yet. Tap “Log food”, then snap a photo or type what you ate.</p>') + '</section>' +
+    '<section class="card"><div class="row between" style="margin-bottom:6px"><span class="label">Protein, 7 days</span>' + weekAvg() + '</div>' + proteinChart() + '</section>' +
     '</div>';
 }
-
+function weekDays() { const end = todayKey(), out = []; for (let i = 6; i >= 0; i--) { const k = addDays(end, -i); out.push({ k, p: totalsFor(k).p, wd: 'SMTWTFS'[parseKey(k).getDay()] }); } return out; }
+function weekAvg() { const d = weekDays(), a = d.reduce((x, y) => x + y.p, 0) / 7; return '<span class="pill num">avg ' + Math.round(a) + ' g</span>'; }
 function proteinChart() {
-  const end = todayKey(), goal = state.settings.proteinGoal;
-  const days = []; for (let i = 6; i >= 0; i--) { const k = addDays(end, -i); days.push({ k, p: totalsFor(k).p, wd: 'SMTWTFS'[parseKey(k).getDay()] }); }
+  const end = todayKey(), goal = state.settings.proteinGoal, days = weekDays();
   const W = 340, H = 170, L = 8, R = 8, T = 22, B = 24, pw = W - L - R, ph = H - T - B;
-  const max = Math.max(goal, ...days.map(d => d.p)) * 1.1;
+  const max = Math.max(goal, ...days.map(d => d.p)) * 1.12;
   const y = v => T + ph - v / max * ph, bw = pw / 7;
-  let s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Protein per day for the last 7 days"><line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
+  let s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Protein per day for the last 7 days"><defs><linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:var(--accent-2)"/></linearGradient><linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--surface3)"/><stop offset="1" style="stop-color:var(--surface2)"/></linearGradient></defs><line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
   days.forEach((d, i) => {
-    const x = L + i * bw + bw * .18, w = bw * .64, h = Math.max(d.p > 0 ? 2 : 0, d.p / max * ph);
-    s += '<rect class="bar1' + (d.k === end ? ' now' : '') + '" x="' + x + '" y="' + (T + ph - h) + '" width="' + w + '" height="' + h + '" rx="4"/>';
+    const x = L + i * bw + bw * .16, w = bw * .68, h = Math.max(d.p > 0 ? 3 : 0, d.p / max * ph), hit = d.p >= goal || d.k === end;
+    s += '<rect x="' + x + '" y="' + (T + ph - h) + '" width="' + w + '" height="' + h + '" rx="6" fill="url(#' + (hit ? 'bg1' : 'bg2') + ')"/>';
     if (d.p > 0) s += '<text class="val" x="' + (x + w / 2) + '" y="' + (T + ph - h - 5) + '" text-anchor="middle">' + Math.round(d.p) + '</text>';
-    s += '<text x="' + (x + w / 2) + '" y="' + (H - 7) + '" text-anchor="middle">' + d.wd + '</text>';
+    s += '<text x="' + (x + w / 2) + '" y="' + (H - 7) + '" text-anchor="middle"' + (d.k === end ? ' style="fill:var(--accent);font-weight:700"' : '') + '>' + d.wd + '</text>';
   });
-  s += '<line class="goal" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(goal) + '" y2="' + y(goal) + '"/><text x="' + (W - R) + '" y="' + (y(goal) - 4) + '" text-anchor="end">goal ' + goal + ' g</text></svg>';
+  s += '<line class="goal" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(goal) + '" y2="' + y(goal) + '"/><text x="' + (W - R) + '" y="' + (y(goal) - 5) + '" text-anchor="end">goal ' + goal + ' g</text></svg>';
   return s;
 }
 
-/* ---------- Food: sheets ---------- */
-function sheetHtml() {
-  if (state.sheet === 'add') return sheetAdd();
-  if (state.sheet === 'confirm') return sheetConfirm();
-  return '';
-}
-function sheetShell(title, body) {
-  return '<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-label="' + esc(title) + '">' +
-    '<div class="row between"><h2 class="disp" style="font-size:30px;text-transform:uppercase">' + esc(title) + '</h2><button class="iconbtn" data-act="closeSheet" aria-label="Close">✕</button></div>' + body + '</div></div>';
-}
-function sheetAdd() {
-  const a = state.add;
-  if (a.status === 'loading') {
-    return sheetShell('Estimating', '<div class="card row" style="gap:16px"><div class="spin"></div><div class="grow"><b>Asking Claude…</b><div class="small muted">The first time, you’ll be asked to allow this page to use Claude. Photos can take 10–30 seconds.</div></div></div><button class="btn ghost" data-act="cancelEst">Cancel</button>');
-  }
-  const photoOk = state.aiImages !== false;
-  const aiOk = !!state.ai;
-  return sheetShell('Log food',
-    (a.error ? '<div class="err">' + esc(a.error) + '</div>' : '') +
-    (!aiOk && state.aiReady ? '<div class="note">Claude estimates aren’t available here. You can still enter numbers by hand.</div>' : '') +
-    (photoOk ? '<div class="photo-row"><label class="btn" for="camIn">Take photo</label><label class="btn" for="fileIn">Upload photo</label>' +
-      '<input id="camIn" type="file" accept="image/*" capture="environment" hidden data-ch="photo"><input id="fileIn" type="file" accept="image/*" hidden data-ch="photo"></div>' : '') +
-    (a.photoUrl ? '<div class="stack" style="gap:8px"><img class="thumb" src="' + a.photoUrl + '" alt="Meal photo"><button class="link" data-act="clearPhoto" style="align-self:flex-start">Remove photo</button></div>' : '') +
-    '<div class="fld"><label for="addText">' + (a.photoUrl ? 'Anything to add? (optional)' : 'Or describe it') + '</label><textarea id="addText" class="in" placeholder="2 eggs and toast with butter">' + esc(a.text) + '</textarea></div>' +
-    '<button class="btn primary" data-act="estimate"' + (aiOk ? '' : ' disabled') + '>Estimate</button>' +
-    '<button class="btn ghost" data-act="manual">Enter numbers by hand</button>');
-}
-function sheetConfirm() {
-  const c = state.cf, mults = [[.5, '½×'], [.75, '¾×'], [1, '1×'], [1.25, '1¼×'], [1.5, '1½×'], [2, '2×']];
-  return sheetShell(c.id != null ? 'Edit entry' : 'Check & save',
-    (c.fromAi ? '<div class="note">Estimated by Claude' + (c.conf ? ' (' + esc(c.conf) + ' confidence)' : '') + '. Adjust anything that looks off.</div>' : '') +
-    '<div class="fld"><label for="cfName">Food</label><input id="cfName" class="in" value="' + esc(c.name) + '" placeholder="Name"></div>' +
-    '<div class="fld"><label for="cfPortion">Portion</label><input id="cfPortion" class="in" value="' + esc(c.portion) + '" placeholder="e.g. 2 eggs, 1 slice toast"></div>' +
-    (c.base ? '<div class="fld"><label>Scale portion</label><div class="mults">' + mults.map(([m, l]) => '<button data-act="scale" data-m="' + m + '"' + (c.mult === m ? ' class="on"' : '') + '>' + l + '</button>').join('') + '</div></div>' : '') +
-    '<div class="fld"><label for="cfP" style="color:var(--accent)">Protein (g)</label><input id="cfP" class="in num" inputmode="decimal" style="font-size:30px;font-weight:700;min-height:64px;color:var(--accent)" value="' + c.p + '"></div>' +
-    '<div class="grid3"><div class="fld"><label for="cfCal">Calories</label><input id="cfCal" class="in num" inputmode="decimal" value="' + c.cal + '"></div>' +
-    '<div class="fld"><label for="cfC">Carbs (g)</label><input id="cfC" class="in num" inputmode="decimal" value="' + c.c + '"></div>' +
-    '<div class="fld"><label for="cfF">Fat (g)</label><input id="cfF" class="in num" inputmode="decimal" value="' + c.f + '"></div></div>' +
-    '<button class="btn primary" data-act="saveFood">Save</button>' +
-    (c.id != null ? '<button class="btn danger sm' + (state.arm === 'delFood' ? ' armed' : '') + '" data-act="delFood">' + (state.arm === 'delFood' ? 'Tap again to delete' : 'Delete entry') + '</button>' : ''));
-}
+/* ---------- Food: Claude estimate, reasoning and refinement ---------- */
+const SCHEMA = '{"name":"string, max 60 chars","portion":"string, the whole portion in plain words","items":[{"name":"string","portion":"string","calories":0,"protein_g":0,"carbs_g":0,"fat_g":0}],"reasoning":"2-4 plain sentences: what you identified, how you judged the portion size, and what drives the calories and protein","assumptions":["short strings such as: eggs cooked in 1 tsp oil"],"confidence":"low|medium|high","confidence_note":"one short sentence on what would change this estimate the most"}';
+const SCHEMA_FU = SCHEMA.slice(0, -1) + ',"change_summary":"one short sentence saying what changed and why"}';
+const RULES = 'List every distinct food as an item (at most 8). Calories are whole kcal; grams are whole numbers. The item values are the source of truth and the totals are their sum, so do not include totals. Use realistic typical portions. If the input is not food, use one item named "Not food" with zeros.\n';
 
-/* ---------- Food: Claude estimate ---------- */
 const ERR = {
   not_granted: 'Claude access was declined for this page. Allow it in the artifact’s permissions, or enter the numbers by hand.',
   sampling_disabled: 'Claude isn’t available for this account. Enter the numbers by hand.',
   rate_limited: 'Too many requests, or your Claude usage limit was reached. Try again in a bit.',
-  invalid_json: 'Claude’s reply couldn’t be read. Try again, or add more detail to the description.',
+  invalid_json: 'Claude’s reply couldn’t be read. Try again, or add more detail.',
   image_rejected: 'That photo couldn’t be used. Try a different one.',
-  images_unavailable: 'Photo estimates aren’t available here. Describe the food in text instead.',
+  images_unavailable: 'Photos aren’t available here. Describe the food in text instead.',
   session_expired: 'Your Claude session expired. Sign in again, then retry.',
   refused: 'Claude couldn’t estimate that. Try rewording it.',
   empty_completion: 'Claude returned nothing. Try again with more detail.',
 };
-async function shrink(file, max = 1280) {
+const errText = e => ERR[e && e.code] || 'Couldn’t reach Claude. Check your connection and try again, or enter the numbers by hand.';
+
+async function shrink(file, max = 1280, q = .85) {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
     const sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
     const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * sc); c.height = Math.round(img.naturalHeight * sc);
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    return await new Promise(r => c.toBlob(b => r(b || file), 'image/jpeg', 0.85));
+    return await new Promise(r => c.toBlob(b => r(b || file), 'image/jpeg', q));
   } catch (e) { return file; } finally { URL.revokeObjectURL(url); }
 }
+async function makeThumb(blob) {
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const sc = Math.min(1, 360 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * sc); c.height = Math.round(img.naturalHeight * sc);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', .72);
+  } catch (e) { return ''; } finally { URL.revokeObjectURL(url); }
+}
+function dataUrlToBlob(u) {
+  try { const [h, b] = u.split(','), mime = h.match(/:(.*?);/)[1], bin = atob(b), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: mime }); } catch (e) { return null; }
+}
+
+function parseEstimate(o) {
+  if (Array.isArray(o)) o = o[0];
+  if (!o || typeof o !== 'object') throw { code: 'invalid_json' };
+  const mk = it => ({ name: String(it.name || 'Item').slice(0, 60), portion: String(it.portion || '').slice(0, 80),
+    calories: Math.max(0, num(it.calories ?? it.kcal)), protein_g: Math.max(0, num(it.protein_g ?? it.protein)), carbs_g: Math.max(0, num(it.carbs_g ?? it.carbs)), fat_g: Math.max(0, num(it.fat_g ?? it.fat)) });
+  let items = (Array.isArray(o.items) ? o.items : []).filter(i => i && typeof i === 'object').slice(0, 10).map(mk);
+  if (!items.length) items = [mk(o)];
+  items.forEach(i => { i.protein_g = r1(i.protein_g); i.carbs_g = r1(i.carbs_g); i.fat_g = r1(i.fat_g); i.calories = Math.round(i.calories || (i.protein_g * 4 + i.carbs_g * 4 + i.fat_g * 9)); });
+  return {
+    name: String(o.name || '').trim().slice(0, 60) || items.map(i => i.name).join(', ').slice(0, 60),
+    portion: String(o.portion || '').trim(), items, t: sumItems(items),
+    reasoning: String(o.reasoning || '').trim(),
+    assumptions: (Array.isArray(o.assumptions) ? o.assumptions : []).map(String).filter(Boolean).slice(0, 8),
+    conf: ['low', 'medium', 'high'].includes(o.confidence) ? o.confidence : '',
+    confNote: String(o.confidence_note || '').trim(), summary: String(o.change_summary || '').trim(),
+  };
+}
+function sumItems(items) {
+  const t = items.reduce((a, i) => (a.p += i.protein_g, a.cal += i.calories, a.c += i.carbs_g, a.f += i.fat_g, a), { p: 0, cal: 0, c: 0, f: 0 });
+  return { p: r1(t.p), cal: Math.round(t.cal), c: r1(t.c), f: r1(t.f) };
+}
+/* The items as they stand now: base items scaled by the portion multiplier, or one item built from the typed numbers. */
+function effectiveItems(c) {
+  const m = c.mult || 1;
+  const src = c.base && c.base.items && c.base.items.length ? c.base.items : [{ name: c.name || 'Food', portion: c.portion || '', calories: c.cal, protein_g: c.p, carbs_g: c.c, fat_g: c.f }];
+  return src.map(i => ({ ...i, calories: Math.round(i.calories * m), protein_g: r1(i.protein_g * m), carbs_g: r1(i.carbs_g * m), fat_g: r1(i.fat_g * m) }));
+}
+function itemsMismatch(c) {
+  if (!c.ai) return false;
+  const t = sumItems(effectiveItems(c));
+  return Math.abs(t.p - c.p) > 1.5 || Math.abs(t.cal - c.cal) > 12;
+}
+function diffOf(a, b) { return { p: r1(b.p - a.p), cal: Math.round(b.cal - a.cal), c: r1(b.c - a.c), f: r1(b.f - a.f) }; }
+const sgn = n => (n > 0 ? '+' : '−') + Math.abs(n);
+
 async function estimate() {
   const a = state.add; captureDraft();
   const text = (a.text || '').trim();
-  if (!text && !a.photo) { a.error = 'Add a photo or describe what you ate first.'; render(); return; }
-  if (!state.ai) { a.error = ERR.sampling_disabled; render(); return; }
-  a.error = ''; a.status = 'loading'; render();
+  if (!text && !a.photo) { a.error = 'Add a photo or describe what you ate first.'; render(true); return; }
+  if (!state.ai) { a.error = ERR.sampling_disabled; render(true); return; }
+  a.error = ''; a.status = 'loading'; render(true);
   const ctl = new AbortController(); state.ctl = ctl;
   const prompt =
     'You are a careful nutrition estimator for a gym-goer who tracks protein first.\n' +
     (a.photo ? 'A photo of the food is attached.\n' : '') +
     (text ? 'The user describes it as: "' + text.replace(/"/g, "'") + '"\n' : '') +
-    'Estimate the totals for the whole portion shown or described. If there are several foods, combine them into one entry whose name briefly lists them (max 60 characters). ' +
-    '"portion" is the plain-language portion you assumed (for example "2 large eggs, 2 slices toast, 1 tbsp butter"). Use realistic typical portions. ' +
-    'Calories are whole kcal; grams are whole numbers. If the image or text is not food, use name "Not food" and zeros.\n' +
-    'Reply with ONLY one JSON object, no prose, no markdown fences, exactly this shape:\n' +
-    '{"name":"string","portion":"string","calories":0,"protein_g":0,"carbs_g":0,"fat_g":0,"confidence":"low|medium|high"}';
+    'Estimate the whole portion shown or described. ' + RULES +
+    'Reply with ONLY one JSON object, no prose, no markdown fences, in exactly this shape:\n' + SCHEMA;
   const opts = { signal: ctl.signal, model: 'claude-sonnet-5-5', modelTier: 'default' };
   if (a.photo) opts.images = [a.photo];
   try {
-    const r = await state.ai.json(prompt, opts);
-    const o = Array.isArray(r) ? r[0] : r;
-    if (!o || typeof o !== 'object') throw { code: 'invalid_json' };
-    const p = Math.max(0, Math.round(num(o.protein_g ?? o.protein))), c = Math.max(0, Math.round(num(o.carbs_g ?? o.carbs))), f = Math.max(0, Math.round(num(o.fat_g ?? o.fat)));
-    let cal = Math.max(0, Math.round(num(o.calories ?? o.kcal)));
-    if (!cal) cal = Math.round(p * 4 + c * 4 + f * 9);
-    const name = String(o.name || '').trim() || text.slice(0, 60) || 'Food';
-    state.cf = { name, portion: String(o.portion || '').trim(), p, cal, c, f, base: { p, cal, c, f }, mult: 1, conf: ['low', 'medium', 'high'].includes(o.confidence) ? o.confidence : '', fromAi: true };
+    const e = parseEstimate(await state.ai.json(prompt, opts));
+    const thumb = a.photo ? await makeThumb(a.photo) : '';
+    if (state.add !== a) return;
+    state.cf = newCf({ name: e.name || text.slice(0, 60) || 'Food', portion: e.portion, p: e.t.p, cal: e.t.cal, c: e.t.c, f: e.t.f,
+      base: { ...e.t, items: e.items }, mult: 1, photo: a.photo, thumb,
+      ai: { items: e.items, reasoning: e.reasoning, assumptions: e.assumptions, conf: e.conf, confNote: e.confNote, thread: [], text } });
     state.sheet = 'confirm';
   } catch (e) {
-    if (e && e.code === 'cancelled') { a.status = 'idle'; render(); return; }
-    a.status = 'idle'; a.error = ERR[e && e.code] || 'Couldn’t reach Claude. Check your connection and try again, or enter the numbers by hand.';
+    a.status = 'idle';
+    if (!(e && e.code === 'cancelled')) a.error = errText(e);
   } finally { state.ctl = null; }
-  render();
+  if (state.sheet) render(true);
+}
+
+async function followUp() {
+  captureDraft();
+  const c = state.cf, note = (c.fu || '').trim();
+  if (!note && !c.morePhotos.length) { c.fuErr = 'Tell Claude what to change, for example “it was 3 eggs” or “no butter”.'; render(true); return; }
+  if (!state.ai) { c.fuErr = ERR.sampling_disabled; render(true); return; }
+  c.fuBusy = true; c.fuErr = ''; render(true);
+  const items = effectiveItems(c), before = { p: c.p, cal: c.cal, c: c.c, f: c.f };
+  const orig = c.photo || (c.thumb ? dataUrlToBlob(c.thumb) : null);
+  let imgs = [orig, ...c.morePhotos].filter(Boolean);
+  if (imgs.length > state.aiMax) imgs = imgs.slice(imgs.length - state.aiMax);
+  const origIn = !!orig && imgs[0] === orig;
+  const manual = itemsMismatch(c) || !c.ai;
+  const prior = (c.ai ? c.ai.thread : []).map((t, i) => (i + 1) + '. "' + t.u + '"').join('\n');
+  const prompt =
+    'You are refining a nutrition estimate for a gym-goer who tracks protein first.\n' +
+    (c.ai && c.ai.text ? 'Original description: "' + c.ai.text.replace(/"/g, "'") + '"\n' : '') +
+    (imgs.length ? (origIn ? 'Image 1 is the original meal photo' + (imgs.length > 1 ? '; later images are new from the user.' : '.') : 'The attached image(s) are new photos from the user; the original photo is not attached, so rely on the current estimate.') + '\n' : '') +
+    'Current estimate (JSON): ' + JSON.stringify({ name: c.name, portion: c.portion, items: items.map(i => ({ name: i.name, portion: i.portion, calories: i.calories, protein_g: i.protein_g, carbs_g: i.carbs_g, fat_g: i.fat_g })) }) + '\n' +
+    (manual ? 'The user has set the current totals to calories ' + c.cal + ', protein ' + c.p + ' g, carbs ' + c.c + ' g, fat ' + c.f + ' g. Treat those totals as correct for the meal as it stands, and adjust the item list to match them before applying the new information.\n' : '') +
+    (prior ? 'Earlier corrections already applied:\n' + prior + '\n' : '') +
+    'New information from the user: ' + (note ? '"' + note.replace(/"/g, "'") + '"' : '(see the new photo)') + '\n' +
+    'Update the estimate to reflect it. Change only what the new information affects and keep other items as they are. Add, remove or resize items as needed. ' + RULES +
+    'Reply with ONLY one JSON object, no prose, no markdown fences, in exactly this shape:\n' + SCHEMA_FU;
+  const ctl = new AbortController(); state.ctl = ctl;
+  const opts = { signal: ctl.signal, model: 'claude-sonnet-5-5', modelTier: 'default', cache: false };
+  if (imgs.length) opts.images = imgs;
+  try {
+    const e = parseEstimate(await state.ai.json(prompt, opts));
+    if (state.cf !== c) return;
+    const d = diffOf(before, e.t), ai = c.ai || { items: [], reasoning: '', assumptions: [], conf: '', confNote: '', thread: [], text: '' };
+    ai.items = e.items; ai.thread = [...ai.thread, { u: note || 'Added a photo', summary: e.summary, d }];
+    if (e.reasoning) ai.reasoning = e.reasoning;
+    if (e.assumptions.length) ai.assumptions = e.assumptions;
+    ai.conf = e.conf || ai.conf; ai.confNote = e.confNote || ai.confNote;
+    c.ai = ai; c.name = e.name || c.name; c.portion = e.portion || c.portion;
+    c.p = e.t.p; c.cal = e.t.cal; c.c = e.t.c; c.f = e.t.f;
+    c.base = { ...e.t, items: e.items }; c.mult = 1; c.fu = ''; c.morePhotos = []; c.showWhy = true;
+    c.flash = { cfP: d.p, cfCal: d.cal, cfC: d.c, cfF: d.f };
+  } catch (e) {
+    if (state.cf === c && !(e && e.code === 'cancelled')) c.fuErr = errText(e);
+  } finally { state.ctl = null; if (state.cf === c) { c.fuBusy = false; render(true); } }
 }
 function readCf() {
   const c = state.cf;
   c.name = $('#cfName').value.trim(); c.portion = $('#cfPortion').value.trim();
   c.p = r1(Math.max(0, num($('#cfP').value))); c.cal = Math.round(Math.max(0, num($('#cfCal').value)));
   c.c = r1(Math.max(0, num($('#cfC').value))); c.f = r1(Math.max(0, num($('#cfF').value)));
+}
+
+/* ---------- Food: sheets ---------- */
+function sheetHtml() { return state.sheet === 'add' ? sheetAdd() : state.sheet === 'confirm' ? sheetConfirm() : ''; }
+function sheetShell(title, body, foot, sub) {
+  return '<div class="scrim' + (state.pop ? ' pop' : '') + '" data-act="scrim"><div class="sheet" role="dialog" aria-label="' + esc(title) + '"><div class="grab"></div>' +
+    '<div class="row between"><div><h2 class="disp" style="font-size:32px;text-transform:uppercase;line-height:1">' + esc(title) + '</h2>' + (sub ? '<div class="small muted" style="margin-top:6px">' + sub + '</div>' : '') + '</div><button class="iconbtn" data-act="closeSheet" aria-label="Close">' + ic(I.x) + '</button></div>' +
+    body + '<div class="sheet-foot">' + (foot || '') + '</div></div></div>';
+}
+function sheetAdd() {
+  const a = state.add;
+  if (a.status === 'loading') {
+    return sheetShell('Estimating', '<div class="card row" style="gap:16px"><div class="spin"></div><div class="grow"><b>Asking Claude…</b><div class="small muted">The first time, you’ll be asked to allow this page to use Claude. Photos can take 10–30 seconds.</div></div></div>',
+      '<button class="btn ghost" data-act="cancelEst">Cancel</button>');
+  }
+  const photoOk = state.aiImages !== false, aiOk = !!state.ai;
+  return sheetShell('Log food',
+    (a.error ? '<div class="err">' + esc(a.error) + '</div>' : '') +
+    (!aiOk && state.aiReady ? '<div class="note">Claude estimates aren’t available here. You can still enter numbers by hand.</div>' : '') +
+    (photoOk && !a.photoUrl ? '<div class="src"><label for="camIn">' + ic(I.camera) + 'Take photo</label><label for="fileIn">' + ic(I.image) + 'Upload photo</label>' +
+      '<input id="camIn" type="file" accept="image/*" capture="environment" hidden data-ch="photo"><input id="fileIn" type="file" accept="image/*" hidden data-ch="photo"></div>' : '') +
+    (a.photoUrl ? '<div class="stack tight"><img class="thumb" src="' + a.photoUrl + '" alt="Meal photo"><button class="link" data-act="clearPhoto" style="align-self:flex-start">' + ic(I.x) + ' Remove photo</button></div>' : '') +
+    '<div class="fld"><label for="addText">' + (a.photoUrl ? 'Anything to add? (optional)' : 'Or describe it') + '</label><textarea id="addText" class="in" placeholder="2 eggs and toast with butter">' + esc(a.text) + '</textarea></div>' +
+    '<button class="btn ghost sm" data-act="manual">Enter numbers by hand</button>',
+    '<button class="btn primary" data-act="estimate"' + (aiOk ? '' : ' disabled') + '>' + ic(I.spark) + ' Estimate</button>');
+}
+function chipsFor(d) {
+  const o = [];
+  if (d.p) o.push('<span class="dchip p">' + sgn(d.p) + ' g protein</span>');
+  if (d.cal) o.push('<span class="dchip k">' + sgn(d.cal) + ' kcal</span>');
+  if (d.c) o.push('<span class="dchip c">' + sgn(d.c) + ' g carbs</span>');
+  if (d.f) o.push('<span class="dchip f">' + sgn(d.f) + ' g fat</span>');
+  return o.length ? '<div class="dchips num">' + o.join('') + '</div>' : '<div class="small muted">Totals unchanged</div>';
+}
+function whyCard(c) {
+  const ai = c.ai, items = effectiveItems(c), t = sumItems(items), open = c.showWhy;
+  let h = '<section class="card why' + (open ? ' open' : '') + '"><button class="why-h" data-act="toggleWhy" aria-expanded="' + open + '"><span class="sp">' + ic(I.spark) + '</span>' +
+    '<span class="grow"><b style="display:block">How Claude got this</b><span class="small muted">' + items.length + (items.length === 1 ? ' item' : ' items') + (ai.assumptions.length ? ' · ' + ai.assumptions.length + ' assumptions' : '') + '</span></span>' +
+    (ai.conf ? '<span class="conf ' + ai.conf + '">' + ai.conf + '</span>' : '') + ic(I.chev, 'chev') + '</button>';
+  if (open) {
+    h += '<div class="why-b">' + (ai.reasoning ? '<p>' + esc(ai.reasoning) + '</p>' : '') +
+      '<div class="num">' + items.map(i => '<div class="brk"><div><div class="n">' + esc(i.name) + '</div><div class="pt">' + esc(i.portion) + '</div></div><div class="v">' + fmt(i.protein_g) + ' g protein<small>' + fmt(i.calories) + ' kcal · ' + fmt(i.carbs_g) + 'c ' + fmt(i.fat_g) + 'f</small></div></div>').join('') +
+      '<div class="brk tot"><div class="n">Breakdown total</div><div class="v">' + fmt(t.p) + ' g protein<small>' + fmt(t.cal) + ' kcal · ' + fmt(t.c) + 'c ' + fmt(t.f) + 'f</small></div></div></div>' +
+      (c.mult !== 1 ? '<div class="note">You scaled the portion to ' + c.mult + '×, so the breakdown above is scaled to match.</div>' : '') +
+      (itemsMismatch(c) ? '<div class="note">You changed the totals by hand, so they differ from this breakdown. If you ask Claude to refine it, your totals are used as the starting point.</div>' : '') +
+      (ai.assumptions.length ? '<div><div class="label" style="margin-bottom:8px">Assumptions</div><ul class="bul">' + ai.assumptions.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' : '') +
+      (ai.confNote ? '<div><div class="label" style="margin-bottom:6px">Biggest unknown</div><div class="small">' + esc(ai.confNote) + '</div></div>' : '') + '</div>';
+  }
+  return h + '</section>';
+}
+function refineCard(c) {
+  const thread = c.ai ? c.ai.thread : [];
+  const canPhoto = state.aiImages !== false;
+  return '<section class="card stack tight"><span class="label">Refine with Claude</span>' +
+    '<div class="small muted">Add detail and Claude will update the numbers. Each update builds on the last.</div>' +
+    (thread.length ? '<div class="thread">' + thread.map(t => '<div class="bub u">' + esc(t.u) + '</div><div class="bub a">' + (t.summary ? '<div>' + esc(t.summary) + '</div>' : '') + chipsFor(t.d) + '</div>').join('') + '</div>' : '') +
+    (c.fuBusy ? '<div class="bub a row" style="gap:10px;flex-direction:row;align-items:center"><div class="spin sm"></div><span class="small muted">Updating the estimate…</span></div>' : '') +
+    (c.fuErr ? '<div class="err">' + esc(c.fuErr) + '</div>' : '') +
+    '<div class="sugg">' + ['It was a bigger portion', 'Less oil or butter', 'I also had '].map(s => '<button data-act="fuChip" data-s="' + esc(s) + '">' + esc(s.trim()) + (s.endsWith(' ') ? '…' : '') + '</button>').join('') + '</div>' +
+    '<div class="fu"><textarea id="fuText" class="in" rows="2" placeholder="e.g. it was 3 eggs, or add a protein shake"' + (c.fuBusy ? ' disabled' : '') + '>' + esc(c.fu || '') + '</textarea>' +
+    (canPhoto ? '<label class="attach" for="fuIn" aria-label="Attach a photo">' + ic(I.camera) + '</label><input id="fuIn" type="file" accept="image/*" hidden data-ch="fuPhoto">' : '') +
+    '<button class="send" data-act="followUp" aria-label="Update estimate"' + (c.fuBusy || !state.ai ? ' disabled' : '') + '>' + ic(I.up) + '</button></div>' +
+    (c.morePhotos.length ? '<div class="row small"><span class="pill">' + c.morePhotos.length + ' new photo' + (c.morePhotos.length > 1 ? 's' : '') + ' attached</span><button class="link" data-act="fuClearPhotos">Remove</button></div>' : '') +
+    '</section>';
+}
+function sheetConfirm() {
+  const c = state.cf, fl = c.flash || {}, mults = [[.5, '½×'], [.75, '¾×'], [1, '1×'], [1.25, '1¼×'], [1.5, '1½×'], [2, '2×']];
+  const fc = k => ' class="in num' + (fl[k] ? ' flash' : '') + '"';
+  return sheetShell(c.id != null ? 'Edit entry' : 'Check & save',
+    (c.thumb ? '<img class="thumb" style="max-height:170px" src="' + c.thumb + '" alt="Meal photo">' : '') +
+    '<div class="fld"><label for="cfName">Food</label><input id="cfName" class="in" value="' + esc(c.name) + '" placeholder="Name"></div>' +
+    '<div class="fld"><label for="cfPortion">Portion</label><input id="cfPortion" class="in" value="' + esc(c.portion) + '" placeholder="e.g. 2 eggs, 1 slice toast"></div>' +
+    '<div class="fld"><label for="cfP" style="color:var(--accent)">Protein (g)</label><input id="cfP" class="in num mainmacro' + (fl.cfP ? ' flash' : '') + '" inputmode="decimal" value="' + c.p + '"></div>' +
+    '<div class="grid3"><div class="fld"><label for="cfCal">Calories</label><input id="cfCal"' + fc('cfCal') + ' inputmode="decimal" value="' + c.cal + '"></div>' +
+    '<div class="fld"><label for="cfC">Carbs (g)</label><input id="cfC"' + fc('cfC') + ' inputmode="decimal" value="' + c.c + '"></div>' +
+    '<div class="fld"><label for="cfF">Fat (g)</label><input id="cfF"' + fc('cfF') + ' inputmode="decimal" value="' + c.f + '"></div></div>' +
+    (c.base ? '<div class="fld"><label>Scale portion</label><div class="mults">' + mults.map(([m, l]) => '<button data-act="scale" data-m="' + m + '"' + (c.mult === m ? ' class="on"' : '') + '>' + l + '</button>').join('') + '</div></div>' : '') +
+    (c.ai ? whyCard(c) : '') +
+    (state.ai ? refineCard(c) : '') +
+    (c.id != null ? '<button class="btn danger sm' + (state.arm === 'delFood' ? ' armed' : '') + '" data-act="delFood">' + (state.arm === 'delFood' ? 'Tap again to delete' : 'Delete entry') + '</button>' : ''),
+    '<button class="btn primary" data-act="saveFood"' + (c.fuBusy ? ' disabled' : '') + '>' + ic(I.check) + ' Save</button>',
+    c.ai ? (c.ai.conf ? '<span class="conf ' + c.ai.conf + '" style="margin-right:6px">' + c.ai.conf + ' confidence</span>' : '') + 'Estimated by Claude. Adjust anything that looks off.' : '');
 }
 
 /* ---------- Workout helpers ---------- */
@@ -494,63 +752,62 @@ function viewWorkout() {
 }
 function workoutStart() {
   const last = buildLast(), done = doneSessions(), prev = done[done.length - 1];
-  let h = '<div class="top"><h1>Ladder</h1></div><div class="stack">';
-  if (prev) { const st = sessionStats(prev); h += '<div class="card row between"><div><div class="label">Last session</div><div style="font-weight:600">' + longDate(prev.ts) + '</div></div><div class="small muted num" style="text-align:right">' + st.sets + ' sets · ' + Math.round(st.dur / 60) + ' min<br>' + fmt(st.vol) + ' lb moved</div></div>'; }
-  h += '<button class="btn primary" data-act="startWk">Start workout</button>';
+  let h = '<div class="top"><h1>The Ladder</h1><span class="pill">Light → heavy</span></div><div class="stack">';
+  if (prev) { const st = sessionStats(prev); h += '<div class="card row between"><div><div class="label">Last session</div><div style="font-weight:600;font-size:18px">' + longDate(prev.ts) + '</div></div><div class="small muted num" style="text-align:right">' + st.sets + ' sets · ' + Math.round(st.dur / 60) + ' min<br>' + fmt(st.vol) + ' lb moved</div></div>'; }
+  h += '<button class="btn primary" data-act="startWk">' + ic(I.workout) + ' Start workout</button><div class="ladder">';
   [1, 2, 3, 4].forEach(t => {
-    h += '<section class="card stack" style="gap:10px"><div class="row between"><span class="disp" style="font-size:26px;text-transform:uppercase">Tier ' + t + ' · ' + TIERS[t].name + '</span><span class="pill">' + TIERS[t].lb + '</span></div>';
+    h += '<div class="rung" style="--tc:' + tvar(t) + '"><div class="node">' + t + '</div><section class="card stack tight"><div class="row between"><span class="disp" style="font-size:26px;text-transform:uppercase">' + TIERS[t].name + '</span><span class="tchip" style="--tc:' + tvar(t) + '">' + TIERS[t].lb + '</span></div>';
     SS.filter(d => d.tier === t).forEach(d => {
-      h += '<div><div class="small muted" style="font-weight:600">' + ssLabel(d) + (d.opt ? ' · optional' : '') + '</div>' +
-        d.ex.map(id => '<div class="row between"><span>' + EX[id].n + '</span><span class="small muted num">' + (last[id] ? wfmt(last[id].sets[last[id].sets.length - 1].w) + ' lb' : '') + '</span></div>').join('') + '</div>';
+      h += '<div class="ssrow"><div class="badge sm" style="--tc:' + tvar(t) + '">' + (d.fin ? '★' : d.id) + '</div><div class="grow">' +
+        d.ex.map(id => '<div class="row between" style="gap:8px"><span>' + EX[id].n + '</span><span class="small muted num">' + (last[id] ? wfmt(last[id].sets[last[id].sets.length - 1].w) + ' lb' : '') + '</span></div>').join('') +
+        (d.opt ? '<div class="small muted">Optional</div>' : '') + '</div></div>';
     });
-    h += '</section>';
+    h += '</section></div>';
   });
-  return h + '</div>';
+  return h + '</div></div>';
 }
 function lastLine(L, setNo) {
   if (!L) return '<div class="lastline">First time. Pick a weight and set the baseline.</div>';
-  return '<div class="lastline">Last (' + shortDate(L.ts) + '): ' + L.sets.map(x => (x.set === setNo ? '<b>' : '') + wfmt(x.w) + '×' + x.r + (x.set === setNo ? '</b>' : '')).join(', ') + '</div>';
+  return '<div class="lastline num">Last (' + shortDate(L.ts) + '): ' + L.sets.map(x => (x.set === setNo ? '<b>' : '') + wfmt(x.w) + '×' + x.r + (x.set === setNo ? '</b>' : '')).join(', ') + '</div>';
 }
 function workoutSet(s) {
-  const d = SS[s.cur.ss], wk = ensureWk(), last = buildLast();
+  const d = SS[s.cur.ss], wk = ensureWk(), last = buildLast(), tc = tvar(d.tier);
   const segs = SS.map((x, i) => {
     const doneSS = s.logs.some(l => l.ss === x.id);
-    return '<i class="' + (i === s.cur.ss ? 'now' : doneSS ? 'done' : (i < s.cur.ss ? 'skip' : '')) + '"></i>';
+    return '<i style="--tc:' + tvar(x.tier) + '" class="' + (i === s.cur.ss ? 'now' : doneSS ? 'done' : (i < s.cur.ss ? 'skip' : '')) + '"></i>';
   }).join('');
-  const isLast = s.cur.ss === SS.length - 1;
   const hasLogs = s.logs.some(l => l.ss === d.id);
-  let h = '<div class="top"><div><div class="label">Tier ' + d.tier + ' · ' + TIERS[d.tier].name + ' · ' + TIERS[d.tier].lb + '</div></div><span class="pill num" id="wkElapsed">' + mmss((Date.now() - s.ts) / 1000) + '</span></div>' +
+  let h = '<div class="top"><span class="tchip" style="--tc:' + tc + '">Tier ' + d.tier + ' · ' + TIERS[d.tier].name + ' · ' + TIERS[d.tier].lb + '</span><span class="pill num" id="wkElapsed">' + mmss((Date.now() - s.ts) / 1000) + '</span></div>' +
     '<div class="stack"><div class="segs">' + segs + '</div>' +
-    '<div class="row" style="gap:14px"><div class="ssid">' + (d.fin ? '★' : d.id) + '</div><div><div class="disp" style="font-size:30px;text-transform:uppercase;line-height:1">' + ssLabel(d) + '</div><div class="muted num">Set ' + s.cur.set + ' of ' + s.cur.target + (d.opt ? ' · optional' : '') + '</div></div></div>';
+    '<div class="row" style="gap:16px"><div class="badge" style="--tc:' + tc + '">' + (d.fin ? '★' : d.id) + '</div><div><div class="disp" style="font-size:34px;text-transform:uppercase;line-height:1">' + ssLabel(d) + '</div><div class="muted num" style="margin-top:4px">Set ' + s.cur.set + ' of ' + s.cur.target + (d.opt ? ' · optional' : '') + '</div></div></div>';
   d.ex.forEach(id => {
     const L = last[id], m = L && (L.sets.find(x => x.set === s.cur.set) || L.sets[L.sets.length - 1]), v = wk.input[id];
-    h += '<section class="card exc"><div class="row between" style="align-items:flex-start"><h3>' + EX[id].n + '</h3>' + (m ? '<span class="beat num">BEAT ' + wfmt(m.w) + '×' + m.r + '</span>' : '') + '</div>' +
+    h += '<section class="card exc" style="--tc:' + tc + '"><div class="row between" style="align-items:flex-start"><h3>' + EX[id].n + '</h3>' + (m ? '<span class="beat num">BEAT ' + wfmt(m.w) + '×' + m.r + '</span>' : '') + '</div>' +
       '<div class="step"><button data-act="adj" data-ex="' + id + '" data-f="w" data-d="-1" aria-label="Less weight">−</button><div class="val"><input class="num" inputmode="decimal" data-in="' + id + '.w" value="' + wfmt(v.w) + '" aria-label="Weight"><span class="u">lb</span></div><button data-act="adj" data-ex="' + id + '" data-f="w" data-d="1" aria-label="More weight">+</button></div>' +
       '<div class="step"><button data-act="adj" data-ex="' + id + '" data-f="r" data-d="-1" aria-label="Fewer reps">−</button><div class="val"><input class="num" inputmode="numeric" data-in="' + id + '.r" value="' + v.r + '" aria-label="Reps"><span class="u">reps</span></div><button data-act="adj" data-ex="' + id + '" data-f="r" data-d="1" aria-label="More reps">+</button></div>' +
       lastLine(L, s.cur.set) + '</section>';
   });
-  h += '<div class="row" style="justify-content:space-between;flex-wrap:wrap">' +
-    (d.opt && !hasLogs ? '<button class="btn ghost sm" data-act="skipSS">Skip ' + ssLabel(d) + '</button>' : '') +
-    (s.logs.length ? '<button class="link" data-act="undoSet">Undo last set</button>' : '') +
-    '<button class="link' + (state.arm === 'finish' ? ' armed' : '') + '" data-act="finishWk" style="margin-left:auto;' + (state.arm === 'finish' ? 'color:var(--danger);font-weight:700' : '') + '">' + (state.arm === 'finish' ? 'Tap again to end workout' : 'End workout early') + '</button></div></div>' +
-    '<div class="dock"><div class="dock-in"><button class="btn primary" data-act="logSet">Log ' + (d.fin ? 'set' : 'superset') + '</button></div></div>';
+  h += '<div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:4px">' +
+    (d.opt && !hasLogs ? '<button class="btn ghost sm" style="width:auto" data-act="skipSS">Skip ' + ssLabel(d) + '</button>' : '') +
+    (s.logs.length ? '<button class="link" data-act="undoSet">' + ic(I.undo) + ' Undo last set</button>' : '') +
+    '<button class="link" data-act="finishWk" style="margin-left:auto;' + (state.arm === 'finish' ? 'color:var(--danger);font-weight:700' : '') + '">' + (state.arm === 'finish' ? 'Tap again to end workout' : 'End workout early') + '</button></div></div>' +
+    '<div class="dock"><div class="dock-in"><button class="btn primary" style="--b:' + tc + '" data-act="logSet">' + ic(I.check) + ' Log ' + (d.fin ? 'set' : 'superset') + '</button></div></div>';
   return h;
 }
 function workoutRest(s) {
-  const d = SS[s.cur.ss], n = s.cur.set, more = n < s.cur.target, lastIdx = s.cur.ss === SS.length - 1;
+  const d = SS[s.cur.ss], n = s.cur.set, more = n < s.cur.target, lastIdx = s.cur.ss === SS.length - 1, tc = tvar(d.tier);
   const lastLog = s.logs[s.logs.length - 1], target = state.settings.restSec;
   const nd = SS[s.cur.ss + 1];
-  const last = buildLast();
   const nextTxt = more ? 'Set ' + (n + 1) + ' · ' + d.ex.map(id => EX[id].n).join(' + ') : (lastIdx ? 'All done. Finish to save.' : ssLabel(nd) + (nd.opt ? ' (optional)' : '') + ' · ' + nd.ex.map(id => EX[id].n).join(' + '));
   const C = 2 * Math.PI * 100, e = (Date.now() - s.restStart) / 1000;
-  return '<div class="top"><div class="label">Rest · ' + ssLabel(d) + ' · set ' + n + ' done</div><span class="pill num" id="wkElapsed">' + mmss((Date.now() - s.ts) / 1000) + '</span></div>' +
-    '<div class="stack"><div class="ring' + (e >= target ? ' ready' : '') + '" id="ring"><svg viewBox="0 0 240 240"><circle class="bg" cx="120" cy="120" r="100"/><circle class="fg" id="ringFg" cx="120" cy="120" r="100" stroke-dasharray="' + C + '" stroke-dashoffset="' + C * (1 - Math.min(1, e / target)) + '"/></svg>' +
+  return '<div class="top"><span class="tchip" style="--tc:' + tc + '">Rest · ' + ssLabel(d) + ' · set ' + n + ' done</span><span class="pill num" id="wkElapsed">' + mmss((Date.now() - s.ts) / 1000) + '</span></div>' +
+    '<div class="stack"><div class="ring' + (e >= target ? ' ready' : '') + '" id="ring" style="--tc:' + tc + '"><svg viewBox="0 0 240 240"><circle class="bg" cx="120" cy="120" r="100"/><circle class="fg" id="ringFg" cx="120" cy="120" r="100" stroke-dasharray="' + C + '" stroke-dashoffset="' + C * (1 - Math.min(1, e / target)) + '"/></svg>' +
     '<div class="mid"><div class="clock num" id="restClock">' + mmss(e) + '</div><div class="small muted num" id="restSub">' + (e >= target ? 'Ready when you are' : 'Target ' + mmss(target)) + '</div></div></div>' +
-    '<div class="card stack" style="gap:6px"><div class="label">Just logged</div>' + d.ex.map(id => lastLog && lastLog.ex[id] ? '<div class="row between"><span>' + EX[id].n + '</span><b class="num">' + wfmt(lastLog.ex[id].w) + ' lb × ' + lastLog.ex[id].r + '</b></div>' : '').join('') + '</div>' +
-    '<div class="card"><div class="label">Up next</div><div style="font-weight:600;margin-top:2px">' + esc(nextTxt) + '</div></div>' +
-    '<div class="row" style="justify-content:space-between;flex-wrap:wrap"><button class="link" data-act="undoSet">Undo last set</button>' +
+    '<div class="card stack tight"><div class="logged"><span class="tick">' + ic(I.check) + '</span><span class="label">Just logged</span></div>' + d.ex.map(id => lastLog && lastLog.ex[id] ? '<div class="row between"><span>' + EX[id].n + '</span><b class="num">' + wfmt(lastLog.ex[id].w) + ' lb × ' + lastLog.ex[id].r + '</b></div>' : '').join('') + '</div>' +
+    '<div class="card"><div class="label">Up next</div><div style="font-weight:600;margin-top:4px">' + esc(nextTxt) + '</div></div>' +
+    '<div class="row" style="justify-content:space-between;flex-wrap:wrap"><button class="link" data-act="undoSet">' + ic(I.undo) + ' Undo last set</button>' +
     (more ? '<button class="link" data-act="skipRest">' + (lastIdx ? 'Finish early' : 'Skip to next superset') + '</button>' : '<button class="link" data-act="moreSet">One more set</button>') + '</div></div>' +
-    '<div class="dock"><div class="dock-in"><button class="btn primary" data-act="restDone">' + (more ? 'Start set ' + (n + 1) : lastIdx ? 'Finish workout' : 'Next: ' + ssLabel(nd)) + '</button></div></div>';
+    '<div class="dock"><div class="dock-in"><button class="btn primary" style="--b:' + tc + '" data-act="restDone">' + (more ? 'Start set ' + (n + 1) : lastIdx ? 'Finish workout' : 'Next: ' + ssLabel(nd)) + '</button></div></div>';
 }
 
 /* ---------- Workout actions ---------- */
@@ -569,7 +826,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && st
 async function startWorkout() {
   const s = { ts: Date.now(), date: todayKey(), status: 'active', cur: { ss: 0, set: 1, target: state.settings.sets }, restStart: null, logs: [] };
   const id = await safe(() => db.sessions.add(s)); s.id = id ?? Date.now();
-  state.sessions.push(s); state.active = s; state.wk = null;
+  state.sessions.push(s); state.active = s; state.wk = null; state.enter = true;
   keepAwake(); render(); window.scrollTo(0, 0);
 }
 function logSet() {
@@ -580,8 +837,8 @@ function logSet() {
     ex[id] = { w: Math.max(0, v.w), r: Math.round(v.r) };
   }
   s.logs.push({ ss: d.id, set: s.cur.set, ts: Date.now(), rest: null, ex });
-  s.restStart = Date.now(); state.alerted = false;
-  try { beep.prime = true; audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume && audioCtx.resume(); } catch (e) {}
+  s.restStart = Date.now(); state.alerted = false; state.enter = true;
+  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume && audioCtx.resume(); } catch (e) {}
   persistActive(); render(); window.scrollTo(0, 0);
 }
 function recordRest(s) {
@@ -598,14 +855,14 @@ function restDone() {
   if (!wasMore && s.cur.ss === SS.length - 1) { s.restStart = null; return finishWorkout(); }
   recordRest(s);
   if (wasMore) s.cur.set++; else moveNext(s);
-  state.wk = null; persistActive(); render(); window.scrollTo(0, 0);
+  state.wk = null; state.enter = true; persistActive(); render(); window.scrollTo(0, 0);
 }
 async function finishWorkout() {
   const s = state.active;
   if (!s.logs.length) { await safe(() => db.sessions.delete(s.id)); state.sessions = state.sessions.filter(x => x !== s); state.active = null; state.wk = null; render(); toast('Workout discarded (no sets logged)'); return; }
   s.status = 'done'; s.end = Date.now(); s.restStart = null;
   await persistActive();
-  state.active = null; state.wk = null; state.tab = 'history'; state.hTab = 'sessions'; state.openSess = s.id;
+  state.active = null; state.wk = null; state.tab = 'history'; state.hTab = 'sessions'; state.openSess = s.id; state.enter = true;
   try { wakeLock && wakeLock.release(); } catch (e) {}
   render(); window.scrollTo(0, 0); toast('Workout saved');
 }
@@ -617,16 +874,18 @@ function viewHistory() {
   if (state.hTab === 'progress') return h + progressView(sessions) + '</div>';
   if (!sessions.length) return h + '<div class="card muted">No finished workouts yet. Your sessions will show up here.</div></div>';
   sessions.forEach(s => {
-    const st = sessionStats(s), open = state.openSess === s.id;
-    h += '<section class="card"><button class="sess" data-act="toggleSess" data-id="' + s.id + '"><div class="row between"><b style="font-size:18px">' + longDate(s.ts) + '</b><span class="muted">' + (open ? '▲' : '▼') + '</span></div>' +
-      '<div class="small muted num">' + st.sets + ' sets · ' + Math.round(st.dur / 60) + ' min · ' + fmt(st.vol) + ' lb moved' + (st.rest != null ? ' · avg rest ' + mmss(st.rest) : '') + '</div></button>';
+    const st = sessionStats(s), open = state.openSess === s.id, dt = new Date(s.ts);
+    h += '<section class="card"><button class="sess" data-act="toggleSess" data-id="' + s.id + '"><div class="dblock"><b class="num">' + dt.getDate() + '</b><span>' + dt.toLocaleDateString(undefined, { month: 'short' }).toUpperCase() + '</span></div>' +
+      '<div class="grow"><b style="font-size:18px">' + dt.toLocaleDateString(undefined, { weekday: 'long' }) + '</b><div class="stats num"><span class="pill">' + st.sets + ' sets</span><span class="pill">' + Math.round(st.dur / 60) + ' min</span><span class="pill">' + fmt(st.vol) + ' lb</span>' + (st.rest != null ? '<span class="pill">rest ' + mmss(st.rest) + '</span>' : '') + '</div></div>' +
+      '<span class="muted" style="display:grid;transform:rotate(' + (open ? 180 : 0) + 'deg)">' + ic(I.chev) + '</span></button>';
     if (open) {
-      h += '<div style="margin-top:10px">';
+      h += '<div style="margin-top:12px">';
       s.logs.forEach(l => {
-        h += '<div class="logrow"><b class="disp" style="font-size:22px;color:var(--accent)">' + (l.ss === 'FIN' ? '★' : l.ss) + l.set + '</b><div class="num">' +
-          Object.entries(l.ex).map(([id, v]) => esc(EX[id].n) + ' <b>' + wfmt(v.w) + '×' + v.r + '</b>').join('<br>') + (l.rest != null ? '<div class="small muted">rest ' + mmss(l.rest) + '</div>' : '') + '</div></div>';
+        const d = SS[ssIndex(l.ss)];
+        h += '<div class="logrow"><div class="badge sm" style="--tc:' + tvar(d ? d.tier : 1) + '">' + (l.ss === 'FIN' ? '★' : l.ss) + '</div><div class="num"><div class="small muted">Set ' + l.set + (l.rest != null ? ' · rest ' + mmss(l.rest) : '') + '</div>' +
+          Object.entries(l.ex).map(([id, v]) => '<div class="row between" style="gap:8px"><span>' + esc(EX[id].n) + '</span><b>' + wfmt(v.w) + ' × ' + v.r + '</b></div>').join('') + '</div></div>';
       });
-      h += '<button class="btn danger sm' + (state.arm === 'delS' + s.id ? ' armed' : '') + '" style="margin-top:10px" data-act="delSess" data-id="' + s.id + '">' + (state.arm === 'delS' + s.id ? 'Tap again to delete' : 'Delete workout') + '</button></div>';
+      h += '<button class="btn danger sm' + (state.arm === 'delS' + s.id ? ' armed' : '') + '" style="margin-top:12px" data-act="delSess" data-id="' + s.id + '">' + (state.arm === 'delS' + s.id ? 'Tap again to delete' : 'Delete workout') + '</button></div>';
     }
     h += '</section>';
   });
@@ -643,9 +902,9 @@ function progressView(sessions) {
   let h = '<div class="fld"><label for="exSel">Exercise</label><select id="exSel" class="in" data-ch="hEx">' + opts + '</select></div><section class="card">';
   if (!pts.length) return h + '<p class="muted" style="margin:0">No sets logged for this exercise yet.</p></section>';
   const first = pts[0], lastP = pts[pts.length - 1], diff = lastP.w - first.w;
-  h += '<div class="row between" style="margin-bottom:6px"><div><div class="label">Top weight</div><div class="disp num" style="font-size:44px;line-height:1;color:var(--accent)">' + wfmt(lastP.w) + '<small style="font-size:18px"> lb</small></div></div>' +
+  h += '<div class="row between" style="margin-bottom:8px"><div><div class="label">Top weight</div><div class="disp num" style="font-size:52px;line-height:1;color:var(--accent)">' + wfmt(lastP.w) + '<small style="font-size:20px;color:var(--muted)"> lb</small></div></div>' +
     (pts.length > 1 ? '<span class="pill num" style="color:' + (diff >= 0 ? 'var(--good)' : 'var(--danger)') + '">' + (diff >= 0 ? '+' : '') + wfmt(diff) + ' lb since ' + shortDate(first.ts) + '</span>' : '') + '</div>' + lineChart(pts);
-  h += '<div style="margin-top:8px">' + [...pts].reverse().slice(0, 8).map(p => '<div class="logrow" style="grid-template-columns:1fr auto"><span>' + longDate(p.ts) + '</span><b class="num">' + wfmt(p.w) + ' lb × ' + p.r + '</b></div>').join('') + '</div></section>';
+  h += '<div style="margin-top:10px">' + [...pts].reverse().slice(0, 8).map(p => '<div class="logrow" style="grid-template-columns:1fr auto"><span>' + longDate(p.ts) + '</span><b class="num">' + wfmt(p.w) + ' lb × ' + p.r + '</b></div>').join('') + '</div></section>';
   return h;
 }
 function lineChart(pts) {
@@ -656,13 +915,13 @@ function lineChart(pts) {
   const t0 = pts[0].ts, t1 = pts[pts.length - 1].ts;
   const x = p => pts.length === 1 || t1 === t0 ? L + pw / 2 : L + (p.ts - t0) / (t1 - t0) * pw;
   const y = v => T + ph - (v - lo) / (hi - lo) * ph;
-  let s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Top weight over time">';
+  let s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Top weight over time"><defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.32"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:0"/></linearGradient></defs>';
   for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) s += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + wfmt(v) + '</text>';
   const line = pts.map((p, i) => (i ? 'L' : 'M') + x(p).toFixed(1) + ' ' + y(p.w).toFixed(1)).join(' ');
-  if (pts.length > 1) s += '<path class="ar" d="' + line + ' L' + x(pts[pts.length - 1]) + ' ' + (T + ph) + ' L' + x(pts[0]) + ' ' + (T + ph) + ' Z"/><path class="ln" d="' + line + '"/>';
-  pts.forEach((p, i) => { s += '<circle class="pt' + (i === pts.length - 1 ? ' last' : '') + '" cx="' + x(p) + '" cy="' + y(p.w) + '" r="' + (i === pts.length - 1 ? 5 : 4) + '"/>'; });
+  if (pts.length > 1) s += '<path d="' + line + ' L' + x(pts[pts.length - 1]) + ' ' + (T + ph) + ' L' + x(pts[0]) + ' ' + (T + ph) + ' Z" fill="url(#ag)"/><path class="ln" d="' + line + '"/>';
+  pts.forEach((p, i) => { s += '<circle class="pt' + (i === pts.length - 1 ? ' last' : '') + '" cx="' + x(p) + '" cy="' + y(p.w) + '" r="' + (i === pts.length - 1 ? 5.5 : 4) + '"/>'; });
   const lp = pts[pts.length - 1];
-  s += '<text class="endl" x="' + Math.min(x(lp), W - R - 6) + '" y="' + (y(lp.w) - 10) + '" text-anchor="' + (x(lp) > W - 50 ? 'end' : 'middle') + '">' + wfmt(lp.w) + '</text>';
+  s += '<text class="endl" x="' + Math.min(x(lp), W - R - 6) + '" y="' + (y(lp.w) - 11) + '" text-anchor="' + (x(lp) > W - 50 ? 'end' : 'middle') + '">' + wfmt(lp.w) + '</text>';
   s += '<text x="' + L + '" y="' + (H - 6) + '" text-anchor="start">' + shortDate(t0) + '</text>';
   if (pts.length > 1) s += '<text x="' + (W - R) + '" y="' + (H - 6) + '" text-anchor="end">' + shortDate(t1) + '</text>';
   return s + '</svg>';
@@ -671,15 +930,15 @@ function lineChart(pts) {
 /* ---------- Settings ---------- */
 function viewSettings() {
   const S = state.settings;
-  const f = (id, label, v, extra) => '<div class="fld"><label for="' + id + '">' + label + '</label><input id="' + id + '" class="in num" inputmode="decimal" data-set="' + id + '" value="' + v + '"' + (extra || '') + '></div>';
+  const f = (id, label, hint, v) => '<div class="setrow"><label for="' + id + '">' + label + '<small>' + hint + '</small></label><input id="' + id + '" class="in num" inputmode="decimal" data-set="' + id + '" value="' + v + '"></div>';
   return '<div class="top"><h1>Settings</h1></div><div class="stack">' +
-    '<section class="card stack"><div class="label">Daily goals</div>' + f('proteinGoal', 'Protein (g)', S.proteinGoal) + f('calGoal', 'Calories (kcal)', S.calGoal) + '</section>' +
-    '<section class="card stack"><div class="label">Workout</div>' + f('sets', 'Sets per superset', S.sets) + f('restSec', 'Rest target (seconds)', S.restSec) +
-    '<div class="fld"><label for="step">Weight step (lb per tap)</label><select id="step" class="in" data-set="step"><option value="2.5"' + (S.step == 2.5 ? ' selected' : '') + '>2.5 lb</option><option value="5"' + (S.step == 5 ? ' selected' : '') + '>5 lb</option><option value="10"' + (S.step == 10 ? ' selected' : '') + '>10 lb</option></select></div></section>' +
-    '<section class="card stack"><div class="label">Food estimates</div>' +
-    (state.ai ? '<div class="note">Connected. Estimates run through your own Claude account when you tap Estimate. No API key needed.' + (state.aiImages === false ? ' Photo input isn’t available in this view, so use text.' : '') + '</div>'
+    '<section class="card"><div class="label" style="margin-bottom:6px">Daily goals</div>' + f('proteinGoal', 'Protein', 'grams per day', S.proteinGoal) + f('calGoal', 'Calories', 'kcal per day', S.calGoal) + '</section>' +
+    '<section class="card"><div class="label" style="margin-bottom:6px">Workout</div>' + f('sets', 'Sets per superset', 'you can add or skip on the fly', S.sets) + f('restSec', 'Rest target', 'seconds between sets', S.restSec) +
+    '<div class="setrow"><label for="step">Weight step<small>lb added per tap</small></label><select id="step" class="in" data-set="step"><option value="2.5"' + (S.step == 2.5 ? ' selected' : '') + '>2.5 lb</option><option value="5"' + (S.step == 5 ? ' selected' : '') + '>5 lb</option><option value="10"' + (S.step == 10 ? ' selected' : '') + '>10 lb</option></select></div></section>' +
+    '<section class="card stack tight"><div class="label">Food estimates</div>' +
+    (state.ai ? '<div class="note">Connected. Estimates and refinements run through your own Claude account when you tap Estimate. No API key needed.' + (state.aiImages === false ? ' Photo input isn’t available in this view, so use text.' : '') + '</div>'
       : '<div class="note">' + (state.aiReady ? 'Claude isn’t available in this view, so estimates are off. Manual entry still works.' : 'Checking…') + '</div>') + '</section>' +
-    '<section class="card stack"><div class="label">Backup</div><p class="small muted" style="margin:0">' + (memMode ? 'Browser storage is blocked here, so data lasts only until you close this page. ' : 'Everything is stored in this browser only. ') + 'Copy a backup now and then.</p>' +
+    '<section class="card stack tight"><div class="label">Backup</div><p class="small muted" style="margin:0">' + (memMode ? 'Browser storage is blocked here, so data lasts only until you close this page. ' : 'Everything is stored in this browser only. ') + 'Copy a backup now and then.</p>' +
     '<textarea id="bk" class="in" style="font-size:13px;min-height:90px" placeholder="Backup JSON appears here. Paste one here to restore.">' + esc(state.backupMsg) + '</textarea>' +
     '<div class="grid2"><button class="btn sm" data-act="exportBk">Copy backup</button><button class="btn sm' + (state.arm === 'restore' ? ' armed' : '') + '" data-act="restoreBk">' + (state.arm === 'restore' ? 'Tap to replace data' : 'Restore') + '</button></div>' +
     '<button class="btn danger sm' + (state.arm === 'wipe' ? ' armed' : '') + '" data-act="wipe">' + (state.arm === 'wipe' ? 'Tap again to erase everything' : 'Erase all data') + '</button></section></div>';
@@ -693,40 +952,48 @@ function armed(key) {
   state.arm = key; render(); clearTimeout(armed.t); armed.t = setTimeout(() => { if (state.arm === key) { state.arm = null; render(); } }, 3500);
   return false;
 }
-function openCf(c) { state.cf = c; state.sheet = 'confirm'; render(); }
+const newCf = o => ({ morePhotos: [], fu: '', showWhy: false, photo: null, thumb: '', ai: null, ...o });
+function openCf(c) { state.cf = c; state.sheet = 'confirm'; state.pop = true; render(); }
 function addFoodEntry(f) {
   f.date = state.viewDate; f.ts = Date.now();
   return safe(async () => { f.id = await db.foods.add(f); }).then(() => { if (f.id == null) f.id = Date.now() + Math.random(); state.foods.push(f); });
 }
 
 const ACT = {
-  nav(el) { state.tab = el.dataset.tab; state.arm = null; render(); window.scrollTo(0, 0); },
+  nav(el) { state.tab = el.dataset.tab; state.arm = null; state.enter = true; render(); window.scrollTo(0, 0); },
   dayPrev() { state.viewDate = addDays(state.viewDate, -1); render(); },
   dayNext() { if (state.viewDate < todayKey()) { state.viewDate = addDays(state.viewDate, 1); render(); } },
-  openAdd() { state.add = { text: '', photo: null, photoUrl: '', status: 'idle', error: '' }; state.sheet = 'add'; render(); },
-  closeSheet() { if (state.ctl) state.ctl.abort(); if (state.add && state.add.photoUrl) URL.revokeObjectURL(state.add.photoUrl); state.sheet = null; state.add = null; state.cf = null; state.arm = null; render(); },
+  openAdd() { state.add = { text: '', photo: null, photoUrl: '', status: 'idle', error: '' }; state.sheet = 'add'; state.pop = true; render(); },
+  closeSheet() { if (state.ctl) state.ctl.abort(); if (state.add && state.add.photoUrl) URL.revokeObjectURL(state.add.photoUrl); state.sheet = null; state.add = null; state.cf = null; state.arm = null; render(true); },
   scrim(el, ev) { if (ev.target === el) ACT.closeSheet(); },
-  clearPhoto() { captureDraft(); URL.revokeObjectURL(state.add.photoUrl); state.add.photo = null; state.add.photoUrl = ''; render(); },
+  clearPhoto() { captureDraft(); URL.revokeObjectURL(state.add.photoUrl); state.add.photo = null; state.add.photoUrl = ''; render(true); },
   cancelEst() { if (state.ctl) state.ctl.abort(); },
   estimate() { estimate(); },
-  manual() { captureDraft(); openCf({ name: (state.add && state.add.text || '').slice(0, 60), portion: '', p: 0, cal: 0, c: 0, f: 0, base: null }); },
+  manual() { captureDraft(); openCf(newCf({ name: (state.add && state.add.text || '').slice(0, 60), portion: '', p: 0, cal: 0, c: 0, f: 0, base: null, mult: 1 })); },
   scale(el) {
+    captureDraft();
     const c = state.cf, m = parseFloat(el.dataset.m); if (!c.base) return;
     c.mult = m; c.p = r1(c.base.p * m); c.cal = Math.round(c.base.cal * m); c.c = r1(c.base.c * m); c.f = r1(c.base.f * m);
-    c.name = $('#cfName').value; c.portion = $('#cfPortion').value; render();
+    render(true);
   },
+  toggleWhy() { captureDraft(); state.cf.showWhy = !state.cf.showWhy; render(true); },
+  fuChip(el) { captureDraft(); state.cf.fu = el.dataset.s; render(true); const t = $('#fuText'); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } },
+  followUp() { followUp(); },
+  fuClearPhotos() { captureDraft(); state.cf.morePhotos = []; render(true); },
   async saveFood() {
-    readCf(); const c = state.cf; if (!c.name) c.name = 'Food';
+    captureDraft(); const c = state.cf; if (!c.name) c.name = 'Food';
+    const ai = c.ai ? { ...c.ai, items: effectiveItems(c) } : null;
+    const rec = { name: c.name, portion: c.portion, p: c.p, cal: c.cal, c: c.c, f: c.f, thumb: c.thumb || '', ai };
     if (c.id != null) {
-      const i = state.foods.findIndex(f => f.id === c.id), old = state.foods[i];
-      const nf = { ...old, name: c.name, portion: c.portion, p: c.p, cal: c.cal, c: c.c, f: c.f };
+      const i = state.foods.findIndex(f => f.id === c.id), nf = { ...state.foods[i], ...rec };
       state.foods[i] = nf; await safe(() => db.foods.put(nf));
-    } else { await addFoodEntry({ name: c.name, portion: c.portion, p: c.p, cal: c.cal, c: c.c, f: c.f }); }
+    } else { await addFoodEntry(rec); }
     ACT.closeSheet(); toast('Saved');
   },
   editFood(el) {
     const f = state.foods.find(x => String(x.id) === el.dataset.id); if (!f) return;
-    openCf({ id: f.id, name: f.name, portion: f.portion || '', p: f.p, cal: f.cal, c: f.c, f: f.f, base: { p: f.p, cal: f.cal, c: f.c, f: f.f }, mult: 1 });
+    openCf(newCf({ id: f.id, name: f.name, portion: f.portion || '', p: f.p, cal: f.cal, c: f.c, f: f.f, thumb: f.thumb || '',
+      ai: f.ai ? JSON.parse(JSON.stringify(f.ai)) : null, base: { p: f.p, cal: f.cal, c: f.c, f: f.f, items: f.ai ? f.ai.items : [] }, mult: 1 }));
   },
   async delFood() {
     if (!armed('delFood')) return;
@@ -737,7 +1004,7 @@ const ACT = {
   },
   async quick(el) {
     const r = state.recents[+el.dataset.i]; if (!r) return;
-    const f = { name: r.name, portion: r.portion, p: r.p, cal: r.cal, c: r.c, f: r.f };
+    const f = { name: r.name, portion: r.portion, p: r.p, cal: r.cal, c: r.c, f: r.f, thumb: r.thumb || '', ai: r.ai ? JSON.parse(JSON.stringify(r.ai)) : null };
     await addFoodEntry(f); render();
     toast('Added ' + r.name, async () => { state.foods = state.foods.filter(x => x !== f); await safe(() => db.foods.delete(f.id)); render(); });
   },
@@ -750,11 +1017,11 @@ const ACT = {
     const inp = document.querySelector('[data-in="' + id + '.' + f + '"]'); if (inp) inp.value = f === 'w' ? wfmt(v[f]) : v[f];
   },
   logSet() { logSet(); },
-  skipSS() { const s = state.active; s.cur = { ss: s.cur.ss + 1, set: 1, target: state.settings.sets }; state.wk = null; persistActive(); render(); },
+  skipSS() { const s = state.active; s.cur = { ss: s.cur.ss + 1, set: 1, target: state.settings.sets }; state.wk = null; state.enter = true; persistActive(); render(); },
   undoSet() {
     const s = state.active, l = s.logs.pop(); if (!l) return;
     s.cur = { ss: ssIndex(l.ss), set: l.set, target: Math.max(s.cur.target, l.set) };
-    s.restStart = null; state.wk = null; persistActive(); render(); toast('Last set removed');
+    s.restStart = null; state.wk = null; state.enter = true; persistActive(); render(); toast('Last set removed');
   },
   restDone() { restDone(); },
   moreSet() { const s = state.active; s.cur.target = s.cur.set + 1; restDone(); },
@@ -816,7 +1083,10 @@ document.addEventListener('change', async ev => {
   else if (el.dataset.ch === 'photo' && el.files && el.files[0]) {
     captureDraft(); const a = state.add;
     if (a.photoUrl) URL.revokeObjectURL(a.photoUrl);
-    a.photo = await shrink(el.files[0]); a.photoUrl = URL.createObjectURL(a.photo); a.error = ''; render();
+    a.photo = await shrink(el.files[0]); a.photoUrl = URL.createObjectURL(a.photo); a.error = ''; render(true);
+  } else if (el.dataset.ch === 'fuPhoto' && el.files && el.files[0] && state.cf) {
+    captureDraft(); const c = state.cf;
+    c.morePhotos = [...c.morePhotos, await shrink(el.files[0])].slice(-Math.max(1, state.aiMax)); c.fuErr = ''; render(true);
   }
 });
 
@@ -845,10 +1115,10 @@ setInterval(() => {
   try {
     const s = window.claude && await window.claude.use('sample');
     state.ai = s || null;
-    if (s) { const lim = await s.limits().catch(() => null); state.aiImages = !!(lim && lim.images); }
+    if (s) { const lim = await s.limits().catch(() => null); state.aiImages = !!(lim && lim.images); state.aiMax = (lim && lim.images && lim.images.maxCount) || 1; }
   } catch (e) { state.ai = null; }
   state.aiReady = true;
-  if (state.sheet === 'add' && state.add && state.add.status === 'idle') render();
+  if (state.sheet === 'confirm' || (state.sheet === 'add' && state.add && state.add.status === 'idle')) render(true);
   else if (state.tab === 'settings') render();
 })();
 </script>
