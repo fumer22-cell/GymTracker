@@ -349,13 +349,76 @@ function makeMem() {
   }; };
   return { foods: mk('id', true), sessions: mk('id', true), settings: mk('key', false) };
 }
+/* Cloud store: the artifact's private per-viewer database (data/users/<id>/...). Same table API as Dexie. */
+let lastId = 0;
+const nextId = () => (lastId = Math.max(Date.now(), lastId + 1));
+async function makeCloud() {
+  const cdb = window.claude && await window.claude.use('db');
+  const user = window.claude && await window.claude.use('user');
+  if (!cdb || !user) return null;
+  const uid = await user.id();
+  if (!uid) return null;
+  const root = cdb.doc('data/users/' + uid + '/store');
+  const clean = o => JSON.parse(JSON.stringify(o));
+  const chain = new Map();
+  const run = (id, fn) => {
+    const prev = chain.get(id) || Promise.resolve();
+    const p = prev.catch(() => {}).then(fn);
+    chain.set(id, p);
+    p.finally(() => { if (chain.get(id) === p) chain.delete(id); }).catch(() => {});
+    return p;
+  };
+  const tbl = name => {
+    const col = root.collection(name);
+    return {
+      async toArray() { const snap = await col.orderBy('ts', 'desc').limit(1000).get(); return snap.docs.map(d => clean(d.data())); },
+      add(o) { o = clean(o); if (o.id == null) o.id = nextId(); return run(o.id, () => col.doc(String(o.id)).set(o)).then(() => o.id); },
+      put(o) { o = clean(o); if (o.id == null) o.id = nextId(); return run(o.id, () => col.doc(String(o.id)).set(o)).then(() => o.id); },
+      delete(id) { return run(id, () => col.doc(String(id)).delete()); },
+      async clear() { const snap = await col.limit(1000).get(); await Promise.all(snap.docs.map(d => col.doc(d.id).delete())); },
+    };
+  };
+  const sdoc = cdb.doc('data/users/' + uid + '/settings');
+  let sv = null, schain = Promise.resolve();
+  const sload = async () => { if (sv) return sv; const s = await sdoc.get(); sv = s.exists ? { ...((s.data() || {}).values || {}) } : {}; return sv; };
+  const swrite = () => (schain = schain.catch(() => {}).then(() => sdoc.set({ values: { ...sv } })));
+  const settings = {
+    async toArray() { const v = await sload(); return Object.entries(v).map(([key, value]) => ({ key, value })); },
+    async put(r) { const v = await sload(); v[r.key] = r.value; return swrite(); },
+    async clear() { sv = {}; return swrite(); },
+    async delete() {},
+  };
+  const t = { foods: tbl('foods'), sessions: tbl('sessions'), settings };
+  await t.foods.toArray();   // fails here if this view can't read its own data, so we fall back
+  return t;
+}
+let store = 'mem';
 async function initDb() {
+  let local = null;
   try {
     const d = new Dexie('gymtracker');
     d.version(1).stores({ foods: '++id,date,ts', sessions: '++id,ts,status', settings: 'key' });
     await d.open();
-    db = d;
-  } catch (e) { memMode = true; db = makeMem(); }
+    local = d;
+  } catch (e) { local = null; }
+  let cloud = null;
+  try { cloud = await makeCloud(); } catch (e) { cloud = null; }
+  if (cloud) { db = cloud; store = 'cloud'; state.localDb = local; }
+  else if (local) { db = local; store = 'local'; }
+  else { db = makeMem(); store = 'mem'; }
+  memMode = store === 'mem';
+}
+/* Carry over anything saved in this browser by an earlier version, once, into an empty account store. */
+async function migrateLocal() {
+  const L = state.localDb;
+  if (store !== 'cloud' || !L || state.foods.length || state.sessions.length) return;
+  const [lf, ls, lset] = await Promise.all([L.foods.toArray(), L.sessions.toArray(), L.settings.toArray()]);
+  if (!lf.length && !ls.length) return;
+  for (const f of lf) await db.foods.put(f);
+  for (const s of ls) await db.sessions.put(s);
+  for (const r of lset) await db.settings.put(r);
+  await loadAll();
+  toast('Moved ' + (lf.length + ls.length) + ' saved items to your account');
 }
 
 const DEFAULTS = { proteinGoal: 160, calGoal: 2600, sets: 3, restSec: 60, step: 5 };
@@ -363,10 +426,11 @@ const state = {
   tab: 'today', viewDate: todayKey(), foods: [], sessions: [], settings: { ...DEFAULTS },
   sheet: null, add: null, cf: null, active: null, wk: null, enter: false, pop: false,
   hTab: 'sessions', hEx: 'lat', openSess: null, arm: null,
-  ai: null, aiImages: null, aiMax: 1, aiReady: false, ctl: null, backupMsg: '',
+  ai: null, aiImages: null, aiMax: 1, aiReady: false, ctl: null, backupMsg: '', loading: true, localDb: null,
+  lastToday: todayKey(), lastLoad: Date.now(),
 };
 
-async function safe(fn) { try { return await fn(); } catch (e) { toast('Could not save to this browser'); return null; } }
+async function safe(fn) { try { return await fn(); } catch (e) { toast(store === 'cloud' ? 'Couldn’t save to your account. Check your connection and try again.' : 'Could not save to this browser'); return null; } }
 
 async function loadAll() {
   state.foods = await db.foods.toArray();
@@ -374,6 +438,7 @@ async function loadAll() {
   const rows = await db.settings.toArray();
   rows.forEach(r => { if (r.key in DEFAULTS) state.settings[r.key] = r.value; });
   state.active = state.sessions.find(s => s.status === 'active') || null;
+  state.lastLoad = Date.now();
 }
 const setSetting = (k, v) => { state.settings[k] = v; return safe(() => db.settings.put({ key: k, value: v })); };
 const doneSessions = () => state.sessions.filter(s => s.status === 'done').sort((a, b) => a.ts - b.ts);
@@ -404,7 +469,7 @@ function render(skipCapture) {
   const views = { today: viewToday, workout: viewWorkout, history: viewHistory, settings: viewSettings };
   const tabs = [['today', 'Food'], ['workout', 'Workout'], ['history', 'History'], ['settings', 'Settings']];
   const enter = state.enter; state.enter = false;
-  app.innerHTML = '<div class="' + (enter ? 'enter' : '') + '">' + views[state.tab]() + '</div>' +
+  app.innerHTML = '<div class="' + (enter ? 'enter' : '') + '">' + (state.loading ? '<div class="card row" style="gap:16px;margin-top:30vh"><div class="spin"></div><div><b>Loading your data…</b><div class="small muted">Fetching your saved meals and workouts.</div></div></div>' : views[state.tab]()) + '</div>' +
     '<nav class="nav" aria-label="Sections"><div class="nav-in">' +
     tabs.map(([k, l]) => '<button data-act="nav" data-tab="' + k + '"' + (state.tab === k ? ' aria-current="page"' : '') + '><span class="ico">' + ic(I[k]) + '</span>' + l + '</button>').join('') +
     '</div></nav>' + (state.sheet ? sheetHtml() : '');
@@ -821,7 +886,15 @@ function beep() {
 }
 let wakeLock;
 async function keepAwake() { try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {} }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && state.active) keepAwake(); });
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) return;
+  if (state.active) keepAwake();
+  const t = todayKey();
+  if (t !== state.lastToday) { if (state.viewDate === state.lastToday) state.viewDate = t; state.lastToday = t; if (!state.sheet) render(); }
+  if (store === 'cloud' && !state.sheet && !state.active && !state.loading && Date.now() - state.lastLoad > 60000) {
+    try { await loadAll(); if (!state.sheet) render(); } catch (e) {}
+  }
+});
 
 async function startWorkout() {
   const s = { ts: Date.now(), date: todayKey(), status: 'active', cur: { ss: 0, set: 1, target: state.settings.sets }, restStart: null, logs: [] };
@@ -938,7 +1011,11 @@ function viewSettings() {
     '<section class="card stack tight"><div class="label">Food estimates</div>' +
     (state.ai ? '<div class="note">Connected. Estimates and refinements run through your own Claude account when you tap Estimate. No API key needed.' + (state.aiImages === false ? ' Photo input isn’t available in this view, so use text.' : '') + '</div>'
       : '<div class="note">' + (state.aiReady ? 'Claude isn’t available in this view, so estimates are off. Manual entry still works.' : 'Checking…') + '</div>') + '</section>' +
-    '<section class="card stack tight"><div class="label">Backup</div><p class="small muted" style="margin:0">' + (memMode ? 'Browser storage is blocked here, so data lasts only until you close this page. ' : 'Everything is stored in this browser only. ') + 'Copy a backup now and then.</p>' +
+    '<section class="card stack tight"><div class="label">Storage</div><div class="note">' +
+    (store === 'cloud' ? 'Saved to your Claude account, private to you. Your meals and workouts show up on any device where you open this page.'
+      : store === 'local' ? 'Saved in this browser only. Account saving isn’t available in this view, and browser storage can be cleared, so copy a backup below.'
+      : 'Storage is blocked here, so data lasts only until you close this page. Copy a backup below.') + '</div></section>' +
+    '<section class="card stack tight"><div class="label">Backup</div><p class="small muted" style="margin:0">Copy everything as text to keep a spare, or paste one back to restore.</p>' +
     '<textarea id="bk" class="in" style="font-size:13px;min-height:90px" placeholder="Backup JSON appears here. Paste one here to restore.">' + esc(state.backupMsg) + '</textarea>' +
     '<div class="grid2"><button class="btn sm" data-act="exportBk">Copy backup</button><button class="btn sm' + (state.arm === 'restore' ? ' armed' : '') + '" data-act="restoreBk">' + (state.arm === 'restore' ? 'Tap to replace data' : 'Restore') + '</button></div>' +
     '<button class="btn danger sm' + (state.arm === 'wipe' ? ' armed' : '') + '" data-act="wipe">' + (state.arm === 'wipe' ? 'Tap again to erase everything' : 'Erase all data') + '</button></section></div>';
@@ -1107,11 +1184,14 @@ setInterval(() => {
 
 /* ---------- Boot ---------- */
 (async function boot() {
+  render();
   await initDb();
-  try { await loadAll(); } catch (e) { toast('Could not read saved data'); }
+  try { await loadAll(); await migrateLocal(); } catch (e) { toast('Could not read saved data'); }
+  state.loading = false;
   if (state.active) { state.tab = 'workout'; keepAwake(); }
   render();
-  if (memMode) toast('Storage is blocked here. Data won’t persist.');
+  if (store === 'mem') toast('Storage is blocked here. Data won’t persist.');
+  else if (store === 'local') toast('Account saving is unavailable. Saving in this browser only.');
   try {
     const s = window.claude && await window.claude.use('sample');
     state.ai = s || null;
